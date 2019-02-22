@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merge xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!--changed from activity_vertical_margin to fab_margin -->
+    <RelativeLayout
+        android:id="@+id/fab_container"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/fab_margin"
+        android:clipChildren="false">
+
+
+        <TextView
+            android:id="@+id/textView8"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/fab"
+            android:layout_gravity="center_vertical"
+            android:layout_marginLeft="-118dp"
+            android:layout_marginEnd="2dp"
+            android:layout_marginBottom="-42dp"
+            android:layout_toStartOf="@+id/fabAction_1"
+            android:layout_toRightOf="@+id/fabAction_1"
+            android:background="@drawable/btn_round"
+            android:paddingLeft="20dp"
+            android:paddingTop="5dp"
+            android:paddingRight="5dp"
+            android:paddingBottom="5dp"
+            android:text="Chat"
+            android:textColor="#FAFAFA"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@+id/fabAction_1"
+            style="@style/FloatingActionButton"
+            android:layout_above="@id/fab"
+            android:layout_alignEnd="@id/fab"
+            android:contentDescription="@null"
+            android:src="@drawable/plus" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_above="@+id/fab"
+            android:layout_gravity="center_vertical"
+            android:layout_marginLeft="-119dp"
+            android:layout_marginEnd="3dp"
+            android:layout_marginBottom="25dp"
+            android:layout_toStartOf="@+id/fabAction_1"
+            android:layout_toRightOf="@+id/fabAction_1"
+            android:background="@drawable/btn_round"
+            android:paddingLeft="20dp"
+            android:paddingTop="5dp"
+            android:paddingRight="5dp"
+            android:paddingBottom="5dp"
+            android:text="Stats"
+            android:textColor="#FAFAFA"
+            android:textStyle="bold" />
+
+        <ImageButton
+            android:id="@id/fab"
+            style="@style/FloatingActionButton"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentBottom="true"
+            android:layout_marginTop="8dp"
+            android:contentDescription="@null"
+            android:onClick="StartChatActivity"
+            android:src="@drawable/plus"
+            android:visibility="visible" />
+
+    </RelativeLayout>
+</merge>

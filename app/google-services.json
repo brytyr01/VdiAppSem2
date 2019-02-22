@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "814561838082",
+    "firebase_url": "https://virtualdrivinginstructor.firebaseio.com",
+    "project_id": "virtualdrivinginstructor",
+    "storage_bucket": "virtualdrivinginstructor.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:814561838082:android:71fc7c59ba98c4ad",
+        "android_client_info": {
+          "package_name": "com.example.bryantyrrell.vdiapp"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "814561838082-9aotu30g13j00lugb83ttgod8h553bj3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBxDnMro4bzDjDh7lTWPNqdzX4QaLE6gow"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

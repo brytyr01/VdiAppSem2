@@ -1,0 +1,4 @@
+const admin = require('firebase-admin');
+exports.getUserMail = functions.https.onRequest((req, resp) => {
+    admin.auth().getUser(req.query.uid)
+}
