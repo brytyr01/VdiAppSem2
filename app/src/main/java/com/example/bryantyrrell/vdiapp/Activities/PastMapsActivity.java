@@ -10,13 +10,16 @@ import android.view.View;
 import com.example.bryantyrrell.vdiapp.Chat.ChatMessage;
 import com.example.bryantyrrell.vdiapp.Database.DatabaseService;
 import com.example.bryantyrrell.vdiapp.GPSMap.MapUI.GPSPoint;
+import com.example.bryantyrrell.vdiapp.GPSMap.Video.VideoObject;
 import com.example.bryantyrrell.vdiapp.R;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.SupportMapFragment;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.LatLngBounds;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.PolylineOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -37,12 +40,11 @@ import java.util.ArrayList;
 
 import javax.annotation.Nullable;
 
-public class PastMapsActivity extends FragmentActivity implements OnMapReadyCallback {
+public class PastMapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMarkerClickListener {
     private GoogleMap mMap;
     private String routeName,UserName,UserID;
-    GeoPoint geoPoint;
-    GeoPoint point;
-    private ArrayList<GeoPoint> postProcessedPoints = new ArrayList<>();
+    Marker marker;
+    private ArrayList<VideoObject> MarkerList = new ArrayList<>();
     private ArrayList<GPSPoint> GPSList;
     LatLng LtLngPoint;
 
@@ -84,7 +86,7 @@ public class PastMapsActivity extends FragmentActivity implements OnMapReadyCall
     private void getGPSPoints() {
         //gets database reference
         FirebaseAuth mAuth = FirebaseAuth.getInstance();
-        DatabaseService DatabaseAccessor = new DatabaseService(UserID, UserName);
+        DatabaseService DatabaseAccessor = new DatabaseService(UserID, UserName,this);
 
         DocumentReference userDocument = DatabaseAccessor.getUserDocument();
 
@@ -111,11 +113,59 @@ public class PastMapsActivity extends FragmentActivity implements OnMapReadyCall
 
             }
         });
+
+        final CollectionReference colRefMarkersVideo = userDocument.collection("GPS_Location").document(routeName).collection("GPS_Pings").document("Video_location_Pings").collection("VideoObjects");
+
+
+        colRefMarkersVideo.orderBy("drivingType", Query.Direction.ASCENDING).addSnapshotListener(new EventListener<QuerySnapshot>() {
+
+
+            @Override
+            public void onEvent(@Nullable QuerySnapshot value, @Nullable FirebaseFirestoreException e) {
+
+                GPSList = new ArrayList<>();
+                for (QueryDocumentSnapshot doc : value) {
+
+                    VideoObject videoObject = doc.toObject(VideoObject.class);
+                    System.out.println("We did it! "+videoObject.getVideoFileName());
+                    MarkerList.add(videoObject);
+                }
+
+
+                if(MarkerList.size()>0)
+                    AddMarkers(MarkerList);
+
+            }
+        });
     }
 
+    private void AddMarkers(ArrayList<VideoObject> markerList) {
+        mMap.setOnMarkerClickListener(this);
+        for (VideoObject obj : markerList) {
+            String drivingtype = obj.getDrivingType();
+            LatLng gpsPoint = new LatLng(obj.getGpsPoint().getLatitude(), obj.getGpsPoint().getLongitude());
 
 
+            if (drivingtype.contains("acceleration")) {
+                MarkerOptions markerOptions = new MarkerOptions();
+                markerOptions.position(gpsPoint);
+                markerOptions.title(obj.getVideoFileName());
+                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
+                if (mMap != null)
+                    mMap.addMarker(markerOptions);
+            }
+            if (drivingtype.contains(obj.getVideoFileName())) {
+                MarkerOptions markerOptions = new MarkerOptions();
+                markerOptions.position(gpsPoint);
+                markerOptions.title("dangerous Steering");
+                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
 
+                if (mMap != null)
+                     marker = mMap.addMarker(markerOptions);
+
+            }
+        }
+    }
 
 
     private void RedrawLine(ArrayList<GPSPoint> GPSList) {
@@ -153,6 +203,8 @@ public class PastMapsActivity extends FragmentActivity implements OnMapReadyCall
 
 
 
+
+
     }
 
 
@@ -182,9 +234,20 @@ public class PastMapsActivity extends FragmentActivity implements OnMapReadyCall
         startActivity(intent);
     }
     // starts map activity with past route
-    public void StartStaticticsActivity(View view) {
-        Intent intent = new Intent(this, PastMapsActivity.class);
+//    public void StartStaticticsActivity(View view) {
+//        Intent intent = new Intent(this, PastMapsActivity.class);
+//        startActivity(intent);
+//    }
+
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        System.out.println("This marker was clicked: "+marker.getTitle());
+        Intent intent = new Intent(this,VideoPlayerActivity.class);
+        intent.putExtra("VideoName",marker.getTitle());
+        intent.putExtra("UserID",UserID);
+        intent.putExtra("RouteName",routeName);
         startActivity(intent);
+        return true;
     }
 }
 

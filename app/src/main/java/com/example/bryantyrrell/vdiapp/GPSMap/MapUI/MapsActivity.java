@@ -3,18 +3,15 @@ package com.example.bryantyrrell.vdiapp.GPSMap.MapUI;
 import android.Manifest;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
-import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.hardware.Camera;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.media.Ringtone;
-import android.media.RingtoneManager;
-import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
@@ -23,14 +20,18 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
+import android.view.SurfaceHolder;
+import android.view.SurfaceView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.Toast;
 import com.example.bryantyrrell.vdiapp.Database.DatabaseService;
 import com.example.bryantyrrell.vdiapp.GPSMap.Acceleration.AccelerometerClass;
-import com.example.bryantyrrell.vdiapp.GPSMap.Acceleration.MaxAccelService;
 import com.example.bryantyrrell.vdiapp.GPSMap.Gyroscope.GyroscopeService;
+import com.example.bryantyrrell.vdiapp.GPSMap.Video.FileCleanUp;
+import com.example.bryantyrrell.vdiapp.GPSMap.Video.SimpleVideoService;
+import com.example.bryantyrrell.vdiapp.GPSMap.Video.VideoObject;
 import com.example.bryantyrrell.vdiapp.R;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -44,17 +45,31 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 
+import java.io.File;
 import java.util.ArrayList;
-public class MapsActivity extends AppCompatActivity implements LocationListener ,OnMapReadyCallback {
+import java.util.Timer;
+import java.util.TimerTask;
+
+public class MapsActivity extends AppCompatActivity implements LocationListener ,OnMapReadyCallback,SurfaceHolder.Callback {
+    private static final String TAG = "Recorder";
+    public static SurfaceView mSurfaceView;
+    public static SurfaceHolder mSurfaceHolder;
+    public static Camera mCamera ;
+    public static boolean mPreviewRunning;
+    static int countVideo=0;
+    public static final int CAMERA_REQUEST = 1;
+
     private GoogleMap mMap;
     private ProgressDialog LocationDialog;
     private Marker markerLocation;
     private DatabaseService databaseUser;
-    private ArrayList<LatLng> storedPoints, postProcessedPoints;
+    private ArrayList<LatLng> PreProcessedGPSPoints, PostProcessedGPSPoints;
+    private ArrayList<Marker> DangerousMarkers;
     private DirectionsParser directionsParser;
     private ImageButton fabButton;//fab
     private View fabAction1, fabAction2, fabAction3;
     private FabButtons fab;
+    private FileCleanUp fileCleanUp;
     private int count = 0;
     private boolean IllegalDriving = false;
     private boolean IllegalSteering = false;
@@ -91,8 +106,9 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
         fabAction2 = findViewById(R.id.fab_action_2);
         fabAction3 = findViewById(R.id.fab_action_3);
         // initialises the arraylist to store the gps points
-        storedPoints = new ArrayList<>();
-        postProcessedPoints = new ArrayList<>();
+        PreProcessedGPSPoints = new ArrayList<>();
+        PostProcessedGPSPoints = new ArrayList<>();
+        DangerousMarkers=new ArrayList<>();
         //asks the user for permission
         checkLocationPermission();
         // the users database entry is gathered
@@ -102,6 +118,11 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
         // Initialise the fab buttons in its own class
         fab = new FabButtons(databaseUser, fabButton, fabContainer, fabAction1, fabAction2, fabAction3, this,this);
 
+        //video set up
+        mSurfaceView = (SurfaceView) findViewById(R.id.surface_camera);
+        mSurfaceHolder = mSurfaceView.getHolder();
+        mSurfaceHolder.addCallback(this);
+        mSurfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
     }
 
     private void registerAccelerationReceiver() {
@@ -110,10 +131,28 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
             public void onReceive(Context context, Intent intent) {
                 IllegalDriving("acceleration");
                 directionsParser.DangerousAccelerationLine();
+                LatLng temp = new LatLng(Currentlatlng.getLatitude(),Currentlatlng.getLongitude());
+                // adds dangerous driving marker to current position
+                addMarker(temp,true);
+                //the incident time is passed by the broadcast intent
+                long IncidentTime = intent.getLongExtra("incidentTime",-1);
+                if(IncidentTime==-1){
+                    IncidentTime=System.currentTimeMillis();
+                }
+
+                VideoObject VideoObject = fileCleanUp.ProcessVideo(DangerousMarkers.get(DangerousMarkers.size()-1),"acceleration",IncidentTime);
+                File video = fileCleanUp.getVideoFile();
+                databaseUser.uploadVideoPoint(VideoObject);
+
+                databaseUser.uploadFile(video);
+                RegisterCoolDown();
             }
         };
         registerReceiver(drivingBroadcastAcceleration, new IntentFilter("com.vdi.driving.acceleration"));
     }
+
+
+
     //https://medium.com/@anitaa_1990/how-to-update-an-activity-from-background-service-or-a-broadcastreceiver-6dabdb5cef74
     private void registerSteeringReceiver() {
         drivingBroadcastSteering = new DrivingBroadcast() {
@@ -121,11 +160,40 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
             public void onReceive(Context context, Intent intent) {
                  IllegalDriving("steering");
                 directionsParser.DangerousSteeringLine();
+                LatLng currentPosition = new LatLng(Currentlatlng.getLatitude(),Currentlatlng.getLongitude());
+                // adds dangerous driving marker to current position
+                addMarker(currentPosition,true);
+                //the incident time is passed by the broadcast intent
+                long IncidentTime = intent.getLongExtra("incidentTime",-1);
+                if(IncidentTime==-1){
+                    IncidentTime=System.currentTimeMillis();
+                }
+                VideoObject object = fileCleanUp.ProcessVideo(DangerousMarkers.get(DangerousMarkers.size()-1),"steering", IncidentTime);
+                File video = fileCleanUp.getVideoFile();
+                databaseUser.uploadVideoPoint(object);
+                databaseUser.uploadFile(video);
             }
         };
         registerReceiver(drivingBroadcastSteering, new IntentFilter("com.vdi.driving.steering"));
     }
 
+    private void RegisterCoolDown() {
+        unregisterReceiver(drivingBroadcastAcceleration);
+        unregisterReceiver(drivingBroadcastSteering);
+        TimerTask coolDownTask = new TimerTask() {
+            @Override
+            public void run() {
+                registerReceiver(drivingBroadcastAcceleration, new IntentFilter("com.vdi.driving.acceleration"));
+                registerReceiver(drivingBroadcastSteering, new IntentFilter("com.vdi.driving.steering"));
+            }
+        };
+        Timer timer = new Timer();
+
+        // schedules the task to be run after a 20 delay
+        timer.schedule(coolDownTask,20000);
+
+
+    }
     @Override
     protected void onStop() {
         super.onStop();
@@ -140,7 +208,29 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
 
 
 
+    private void startRecordingVideo(){
 
+        if(countVideo==0) {
+            Intent intent = new Intent(MapsActivity.this, SimpleVideoService.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            startService(intent);
+            countVideo++;
+        }
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                Intent test1 = new Intent("com.vdi.driving.video");
+                sendBroadcast(test1);
+                System.out.println("broadcast sent");
+            }
+        };
+        Timer timer = new Timer();
+        long delay = 15000;
+
+        // schedules the task to be run after a 15 delay
+        timer.scheduleAtFixedRate(task,15000, delay);
+
+    }
 
 
 
@@ -152,6 +242,8 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
 
 
     public void StatTracking() {
+        startRecordingVideo();
+
         registerAccelerationReceiver();
         registerSteeringReceiver();
 
@@ -160,6 +252,8 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
 
         Intent steeringService = new Intent(this, GyroscopeService.class);
         startService(steeringService);
+
+        fileCleanUp = new FileCleanUp(this);
     }
 
 
@@ -181,23 +275,15 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
     private void InitialiseDataBaseUser() {
         FirebaseAuth mAuth = FirebaseAuth.getInstance();
         FirebaseUser user = mAuth.getCurrentUser();
-        databaseUser = new DatabaseService(user.getUid(), user.getEmail());
+        databaseUser = new DatabaseService(user.getUid(), user.getEmail(),this);
     }
 
 
-    /**
-     * Manipulates the map once available.
-     * This callback is triggered when the map is ready to be used.
-     * This is where we can add markers or lines, add listeners or move the camera. In this case,
-     * we just add a marker near Sydney, Australia.
-     * If Google Play services is not installed on the device, the user will be prompted to install
-     * it inside the SupportMapFragment. This method will only be triggered once the user has
-     * installed Google Play services and returned to the app.
-     */
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-        directionsParser = new DirectionsParser(mMap, storedPoints, databaseUser);
+        directionsParser = new DirectionsParser(mMap, PreProcessedGPSPoints, databaseUser);
 
     }
 
@@ -219,20 +305,20 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
         }
        count++;
         // adds a marker for new gps point
-        addMarker(latLng);
+        addMarker(latLng,false);
 
         // adds the gps point to an array
-        storedPoints.add(latLng);
+        PreProcessedGPSPoints.add(latLng);
 
         // if 2 gps points and go state selected
-        if (storedPoints.size() > 1 && fab.getState() == 1) {
+        if (PreProcessedGPSPoints.size() > 1 && fab.getState() == 1) {
             directionsParser.URLstringBuilder();
         }
 
         float speed = ((location.getSpeed()*3600)/1000);
         System.out.println("The location m/s speed is: "+location.getSpeed());
         System.out.println("The location m/s speed is: "+speed);
-        if(location.hasAccuracy()||location.hasSpeedAccuracy()) {
+        if(location.hasAccuracy()) {
             //System.out.println("The speed accuracy is: " + location.getSpeedAccuracyMetersPerSecond());
             System.out.println("The accuracy is: " + location.getAccuracy());
         }
@@ -250,6 +336,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
            if (mMap != null)
                markerLocation = mMap.addMarker(markerOptions);
+           DangerousMarkers.add(markerLocation);
            IllegalAcceleration=false;
        }
        if(IllegalSteering) {
@@ -260,6 +347,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
            if (mMap != null)
                markerLocation = mMap.addMarker(markerOptions);
            IllegalSteering=false;
+           DangerousMarkers.add(markerLocation);
        }
 
 
@@ -287,13 +375,14 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
     }
 
 
-    private void addMarker(LatLng latLng) {
+    private void addMarker(LatLng latLng, boolean PermanantMarker) {
         if (latLng == null) {
             return;
         }
-        if (markerLocation != null) {
+        if (markerLocation != null&&PermanantMarker==false) {
             markerLocation.remove();
         }
+
         if(IllegalDriving) {
             SetDangerousDriving(latLng);
         }
@@ -314,6 +403,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
                 mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
         }
 
+        return;
     }
 
 
@@ -516,6 +606,18 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
 
         alertDialog.show();
     }
+    @Override
+    public void surfaceCreated(SurfaceHolder holder) {
 
+    }
 
+    @Override
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+    }
+
+    @Override
+    public void surfaceDestroyed(SurfaceHolder holder) {
+        // TODO Auto-generated method stub
+
+    }
 }

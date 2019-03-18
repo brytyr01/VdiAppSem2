@@ -1,10 +1,14 @@
 package com.example.bryantyrrell.vdiapp.Database;
 
+
+import android.content.Context;
+import android.net.Uri;
 import android.support.annotation.NonNull;
 import android.util.Log;
 
 import com.example.bryantyrrell.vdiapp.Chat.ChatMessage;
 import com.example.bryantyrrell.vdiapp.GPSMap.MapUI.GPSPoint;
+import com.example.bryantyrrell.vdiapp.GPSMap.Video.VideoObject;
 import com.example.bryantyrrell.vdiapp.Users;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -14,6 +18,16 @@ import com.google.firebase.firestore.DocumentReference;
 import com.google.firebase.firestore.FieldValue;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.GeoPoint;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+import com.google.firebase.storage.UploadTask;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.net.URI;
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -22,15 +36,21 @@ import static android.support.constraint.Constraints.TAG;
 
 public class DatabaseService {
     private FirebaseFirestore db;
-    private String userID, userName, RouteName;
+    protected String userID, userName, RouteName;
     private ArrayList<LatLng> preProcessedPoints;
     private ArrayList<GPSPoint> postProcessedPoints, cachedProcessedPoints;
     private ArrayList<String> LocationID;
     private DocumentReference userDocument;
+    private FirebaseStorage storage;;
+    private StorageReference storageRef;
+    private // Create a reference to 'images/mountains.jpg'
+            StorageReference VideoStorageRef;
     private int count, count1, count2, chatCount = 0;
+    private boolean CalledFrom = false;
+    private Context context;
 
     //constructor
-    public DatabaseService(String uid, String userName) {
+    public DatabaseService(String uid, String userName,Context context) {
 
         userID = uid;
         this.userName = userName;
@@ -39,6 +59,10 @@ public class DatabaseService {
         LocationID = new ArrayList<>();
         cachedProcessedPoints = new ArrayList<>();
         db = FirebaseFirestore.getInstance();
+        storage = FirebaseStorage.getInstance();
+         this.context=context;
+        storageRef = storage.getReference();
+        CalledFrom=true;
         setUserDocument();
 
     }
@@ -54,6 +78,9 @@ public class DatabaseService {
 
     private void setUserDocument() {
         userDocument = db.collection("users").document(userName + userID);
+        if(CalledFrom==true) {
+            VideoStorageRef = storageRef.child("users").child(userID);
+        }
     }
 
 
@@ -129,10 +156,15 @@ public class DatabaseService {
         Map<String, String> FirstLocationPing = new HashMap<>();
         FirstLocationPing.put("TestPing", "FirstPoint");
 
+        VideoObject obj = new VideoObject("testPoint",gps,"testFile.mp4");
+        Map<String, VideoObject> FirstVideoPing = new HashMap<>();
+        FirstVideoPing.put("TestPing", obj);
+
         //set up raw and processed gps documents
         userDocument.collection("GPS_Location").document(RouteName).collection("GPS_Pings").document("Raw_GPS_Pings").set(FirstPing);//"Raw_GPS_Pings"
         userDocument.collection("GPS_Location").document(RouteName).collection("GPS_Pings").document("Processed_GPS_Pings").set(FirstPingProcessed);//Processed_GPS_Pings
         userDocument.collection("GPS_Location").document(RouteName).collection("GPS_Pings").document("location_Pings").set(FirstLocationPing);//Processed_location_strings
+        userDocument.collection("GPS_Location").document(RouteName).collection("GPS_Pings").document("Video_location_Pings").set(FirstVideoPing);//marker video locations
         addRouteName(route);
     }
 
@@ -206,6 +238,43 @@ public class DatabaseService {
                         Log.w(TAG, "Error deleting document", e);
                     }
                 });
+    }
+public void uploadVideoPoint(VideoObject videoObject){
+
+    userDocument.collection("GPS_Location").document(RouteName).collection("GPS_Pings").document("Video_location_Pings").collection("VideoObjects").add(videoObject)
+            .addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    Log.w(TAG, "Error adding pre processed gps points", e);
+                }
+            });
+
+}
+
+    public void uploadFile(File video) {
+
+        System.out.println("The file path to upload is: "+video.getAbsolutePath());
+        try {
+            InputStream stream = new FileInputStream(new File(video.getAbsolutePath()));
+
+            UploadTask uploadTask = VideoStorageRef.child(RouteName).child(video.getName()).putStream(stream);
+            uploadTask.addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception exception) {
+                    // Handle unsuccessful uploads
+                }
+            }).addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                @Override
+                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                    // taskSnapshot.getMetadata() contains file metadata such as size, content-type, etc.
+                    // ...
+                }
+            });
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+
     }
 }
 

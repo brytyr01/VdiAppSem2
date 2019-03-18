@@ -42,7 +42,7 @@ public class FriendRequestActivity extends AppCompatActivity {
         UserID = getIntent().getStringExtra("UserID");
 
         //Pass details to database class
-        dbref = new DatabaseService(UserID,UserName);
+        dbref = new DatabaseService(UserID,UserName,this);
 
         //get and display route names
         getFriendRequests();

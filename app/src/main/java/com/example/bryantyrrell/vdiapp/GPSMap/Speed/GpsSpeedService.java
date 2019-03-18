@@ -24,7 +24,7 @@ public class GpsSpeedService extends Service {
     private void setUpDatabase(){
         FirebaseAuth mAuth = FirebaseAuth.getInstance();
         FirebaseUser user = mAuth.getCurrentUser();
-        databaseUser = new DatabaseService(user.getUid(), user.getEmail());
+        databaseUser = new DatabaseService(user.getUid(), user.getEmail(),this);
 
     }
 }

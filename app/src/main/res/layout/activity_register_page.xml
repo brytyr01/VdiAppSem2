@@ -12,12 +12,14 @@
         android:id="@+id/LogInButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginEnd="60dp"
-        android:layout_marginBottom="12dp"
+        android:layout_marginStart="86dp"
+        android:layout_marginEnd="87dp"
+        android:layout_marginBottom="63dp"
         android:onClick="extractcreds"
         android:text="@string/Register"
         app:layout_constraintBottom_toTopOf="@+id/button"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toEndOf="@+id/switch1" />
 
     <EditText
         android:id="@+id/Email"
@@ -26,8 +28,8 @@
         android:layout_marginTop="39dp"
         android:ems="10"
         android:inputType="textEmailAddress"
-        app:layout_constraintEnd_toEndOf="@+id/textView4"
-        app:layout_constraintStart_toEndOf="@+id/textView4"
+        app:layout_constraintEnd_toEndOf="@+id/password"
+        app:layout_constraintStart_toStartOf="@+id/password"
         app:layout_constraintTop_toBottomOf="@+id/textView4" />
 
     <EditText
@@ -44,11 +46,11 @@
         android:id="@+id/button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="127dp"
-        android:layout_marginBottom="63dp"
+        android:layout_marginBottom="33dp"
         android:onClick="updateToLogInScreen"
         android:text="@string/Log_In_Page"
         app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
 
     <TextView
@@ -92,8 +94,8 @@
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
         android:text="Name"
-        app:layout_constraintBottom_toBottomOf="@+id/UserFirstName"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/UserFirstName" />
 
     <EditText
         android:id="@+id/UserFirstName"
@@ -102,7 +104,7 @@
         android:layout_marginTop="48dp"
         android:ems="10"
         android:inputType="textPersonName"
-        app:layout_constraintEnd_toEndOf="@+id/password"
+        app:layout_constraintStart_toStartOf="@+id/switch1"
         app:layout_constraintTop_toBottomOf="@+id/password" />
 
     <TextView
@@ -110,19 +112,19 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="16dp"
-        android:layout_marginTop="39dp"
         android:text="Instructor?"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView9" />
+        app:layout_constraintBaseline_toBaselineOf="@+id/switch1"
+        app:layout_constraintStart_toStartOf="parent" />
 
     <Switch
         android:id="@+id/switch1"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="26dp"
+        android:layout_marginTop="39dp"
         android:textOff="@android:string/no"
         android:textOn="@android:string/yes"
-        app:layout_constraintBaseline_toBaselineOf="@+id/textView10"
-        app:layout_constraintStart_toEndOf="@+id/textView10" />
+        app:layout_constraintStart_toEndOf="@+id/textView10"
+        app:layout_constraintTop_toBottomOf="@+id/UserFirstName" />
 
 </android.support.constraint.ConstraintLayout>

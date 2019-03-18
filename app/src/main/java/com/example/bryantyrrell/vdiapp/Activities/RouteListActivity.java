@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.v7.app.AppCompatActivity;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TableLayout;
@@ -35,7 +36,7 @@ public class RouteListActivity extends AppCompatActivity {
         UserName = getIntent().getStringExtra("UserName");
         UserID = getIntent().getStringExtra("UserID");
         //Pass details to database class
-        routeList = new DatabaseService(UserID,UserName);
+        routeList = new DatabaseService(UserID,UserName,this);
 
         //get and display route names
         getRouteNames();
@@ -71,7 +72,8 @@ public class RouteListActivity extends AppCompatActivity {
 
                 // add textview with route name
                 TextView tv = new TextView(this);
-                tv.setTextSize(35);
+                tv.setTextSize(25);
+
                 tv.setText(RouteName);
 
                 // add button with listener

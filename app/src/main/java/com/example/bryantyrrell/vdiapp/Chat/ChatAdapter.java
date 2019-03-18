@@ -33,7 +33,6 @@ public class ChatAdapter extends ArrayAdapter<ChatMessage> {
               TextView messageTime = (TextView) convertView.findViewById(R.id.message_time);
 
               // Set their text
-        System.out.println("GOt here"+message.getMessageText());
               messageText.setText(message.getMessageText());
               messageUser.setText(message.getMessageUser());
 

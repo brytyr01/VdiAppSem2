@@ -49,7 +49,7 @@ public class UserActivity extends AppCompatActivity {
             user = mAuth.getCurrentUser();
 
             //Pass details to database class
-            routeList = new DatabaseService(user.getUid(),user.getEmail());
+            routeList = new DatabaseService(user.getUid(),user.getEmail(),this);
 
             //get and display route names
             getUserNames();
@@ -67,6 +67,7 @@ public class UserActivity extends AppCompatActivity {
                         Log.w(TAG, "Listen failed.", e);
                         return;
                     }
+                    AcceptedUsers.clear();
                     ArrayList<Users> FriendsList = new ArrayList<>();
                     for (QueryDocumentSnapshot doc : value) {
 

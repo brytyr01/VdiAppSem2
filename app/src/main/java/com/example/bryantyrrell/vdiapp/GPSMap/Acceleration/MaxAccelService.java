@@ -12,8 +12,8 @@ import com.example.bryantyrrell.vdiapp.GPSMap.MapUI.MapsActivity;
 import java.util.ArrayList;
 
 public class MaxAccelService {
-    private double MaxAcceleration = 0.015d;
-    private double MinAcceleration = -0.015d;
+    private double MaxAcceleration = 0.000015d;
+    private double MinAcceleration = -0.000015d;
     private AccelerometerActivity accelerometerActivity;
     private AccelerometerClass accelerometerClass;
     private static ArrayList<AccelerationObject> accelLine;

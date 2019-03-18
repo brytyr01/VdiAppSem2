@@ -2,7 +2,6 @@ package com.example.bryantyrrell.vdiapp.GPSMap.MapUI;
 
 import com.google.firebase.firestore.GeoPoint;
 
-
 public class GPSPoint {
         private String DrivingType;
         private GeoPoint GpsPoint;
@@ -14,9 +13,7 @@ public class GPSPoint {
             this.GpsPoint=gpsPoint;
 
         }
-
         public GPSPoint(){
-
         }
 
         public String getDrivingType() {

@@ -18,6 +18,7 @@ import com.example.bryantyrrell.vdiapp.GPSMap.AccelerationFiltering.MeanProcessi
 import com.example.bryantyrrell.vdiapp.GPSMap.AccelerationFiltering.SignalProcessing;
 import com.example.bryantyrrell.vdiapp.GPSMap.MapUI.DrivingBroadcast;
 import com.example.bryantyrrell.vdiapp.GPSMap.MapUI.MapsActivity;
+import com.example.bryantyrrell.vdiapp.GPSMap.VeichleMoving.VeichleInTransit;
 import com.example.bryantyrrell.vdiapp.R;
 import com.google.android.gms.maps.SupportMapFragment;
 
@@ -44,6 +45,8 @@ private ArrayList<AccelData> MeanFilterList;
 private float[] gravity,geomagnetic;
 private double CurrAngle;
 private AngleCalcAsync angleCalc;
+private boolean SetUp;
+private VeichleInTransit check;
 private MapsActivity mapsActivity;
 
 
@@ -72,39 +75,45 @@ private void setup(){
             sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_NORMAL);
             sensorManager.registerListener(this, magnet, SensorManager.SENSOR_DELAY_NORMAL);
 
+            check = new VeichleInTransit();
+            SetUp=true;
+
         }
 
         @Override
         public void onSensorChanged(SensorEvent event) {
-
-
-                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER ) {
-                    count++;
-                    MeanFilterList.add(new AccelData(System.currentTimeMillis(), event.values[0], event.values[1], event.values[2]));
+            if (SetUp) {
+                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                    SetUp = check.checkVeichleMovement(event);
                 }
-
-                if(count>2&&CurrAngle!=0) {
-                    processing=new SignalProcessing(this, 0.5, startTime,MeanFilterList,CurrAngle,MeanProcessing);
-                    processing.execute(event);
-                    count=0;
-                }
-
                 if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
                     gravity = event.values;
                 if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
                     geomagnetic = event.values;
 
 
-
-                if (AngleCount<5&&gravity != null && geomagnetic != null) {
+                if (AngleCount < 5 && gravity != null && geomagnetic != null) {
                     AngleCount++;
-                    angleCalc = new AngleCalcAsync(this,gravity,geomagnetic);
+                    angleCalc = new AngleCalcAsync(this, gravity, geomagnetic);
                     angleCalc.execute();
+                    return;
+                }
+            }
+            if (!SetUp) {
+
+                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                    count++;
+                    MeanFilterList.add(new AccelData(System.currentTimeMillis(), event.values[0], event.values[1], event.values[2]));
                 }
 
+                if (count > 2 && CurrAngle != 0) {
+                    processing = new SignalProcessing(this, 0.5, startTime, MeanFilterList, CurrAngle, MeanProcessing);
+                    processing.execute(event);
+                    count = 0;
+                }
             }
 
-
+        }
 
         @Override
         public void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -136,7 +145,9 @@ private void setup(){
                 //e.printStackTrace();
             //}
 
+            Long IncidentTime = System.currentTimeMillis();
             Intent test1 = new Intent("com.vdi.driving.acceleration");
+            test1.putExtra("incidentTime",IncidentTime);
             this.sendBroadcast(test1);
 
         }
@@ -144,7 +155,6 @@ private void setup(){
     @Override
     public IBinder onBind(Intent intent) {
     //intent.
-        setup();
 
     return null;
     }

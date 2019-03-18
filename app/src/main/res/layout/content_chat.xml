@@ -18,7 +18,7 @@
         android:layout_alignParentEnd="true"
         android:layout_alignParentBottom="true"
         android:clickable="true"
-        android:src="@android:drawable/ic_menu_set_as"
+        app:srcCompat="@android:drawable/ic_dialog_email"
         android:tint="@android:color/white"
         app:fabSize="mini" />
 

@@ -11,6 +11,11 @@
     android:transitionName="content">
 
 
+    <SurfaceView
+        android:id="@+id/surface_camera"
+        android:layout_width="1dp"
+        android:layout_height="1dp"
+        android:layout_alignParentBottom="true"/>
 
     <android.support.v7.widget.Toolbar
         android:id="@+id/my_toolbar"
@@ -36,6 +41,8 @@
         tools:context=".GPSMap.MapUI.MapsActivity" />
 
     <include layout="@layout/fab" />
+
+
     
 
 

@@ -54,12 +54,6 @@ public class SignalProcessing extends AsyncTask<SensorEvent, Void, Void> {
         AccelData data = processing.getDataPoint();
 
 
-//        double X_Axis = data.getX();
-//        double Y_Axis = data.getY();
-//        double angle = Math.atan2(X_Axis, Y_Axis)/(Math.PI/180);
-        System.out.println("After The angle is set aaaaaaaaaaaaaaaaaaaasssssssssssssssssss: "+ CurrAngle);
-
-
             processAccelData(data);
             onPostExecute(data);
         return null;

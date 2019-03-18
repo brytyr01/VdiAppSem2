@@ -15,6 +15,12 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="com.google.android.providers.gsf.permission.READ_GSERVICES" />
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <uses-feature android:name="android.hardware.camera2.full" />
 
     <application
         android:allowBackup="true"
@@ -23,8 +29,8 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
-
-
+        <activity android:name=".Activities.VideoPlayerActivity"></activity>
+        <activity android:name=".GPSMap.Video.VideoTOPActivity" />
         <activity android:name=".Activities.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -75,7 +81,6 @@
         <service
             android:name=".GPSMap.Acceleration.Accelerometer"
             android:exported="false" />
-
         <service
             android:name=".GPSMap.Speed.GpsSpeedService"
             android:enabled="true"
@@ -104,9 +109,10 @@
         <activity android:name=".Activities.FriendRequestActivity" />
         <activity android:name=".GPSMap.Acceleration.AccelerometerActivity" />
         <activity android:name=".GPSMap.Gyroscope.GyroscopeActivity" />
+
         <service android:name=".GPSMap.Acceleration.AccelerometerClass" />
         <service android:name=".GPSMap.Gyroscope.GyroscopeService" />
-
+        <service android:name=".GPSMap.Video.SimpleVideoService" />
     </application>
 
 </manifest>

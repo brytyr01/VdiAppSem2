@@ -5,6 +5,7 @@ import android.animation.Animator;
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
 import android.app.AlertDialog;
+import android.app.Service;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.drawable.Animatable;
@@ -22,7 +23,7 @@ import com.example.bryantyrrell.vdiapp.GPSMap.MapUI.MapsActivity;
 import com.example.bryantyrrell.vdiapp.R;
 
 
-public class FabButtons {
+public class FabButtons  {
     private int State=3;
     private String m_Text;
     private ImageButton fab;

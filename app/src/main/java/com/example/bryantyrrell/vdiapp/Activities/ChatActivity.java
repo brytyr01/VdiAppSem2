@@ -108,46 +108,6 @@ public class ChatActivity extends AppCompatActivity {
             }
         });
 
-
-//        docRef.addSnapshotListener(new EventListener<DocumentSnapshot>() {
-//            @Override
-//            public void onEvent(@Nullable DocumentSnapshot snapshot,
-//                                @Nullable FirebaseFirestoreException e) {
-//                if (e != null) {
-//                    Log.w(TAG, "Listen failed.", e);
-//                    return;
-//                }
-//
-//                if (snapshot != null && snapshot.exists()) {
-//                    Log.d(TAG, "Current data: " + snapshot.getData());
-//                    ChatMessage message = snapshot.toObject(ChatMessage.class);
-//                    UpdateMessage(message);
-//
-//                } else {
-//                    Log.d(TAG, "Current data: null");
-//                }
-//            }
-       // });
-//        docRef.addSnapshotListener(new EventListener<DocumentSnapshot>() {
-//            @Override
-//            public void onEvent(@Nullable DocumentSnapshot snapshot,
-//                                @Nullable FirebaseFirestoreException e) {
-//                if (e != null) {
-//                    Log.w(TAG, "Listen failed.", e);
-//                    return;
-//                }
-//
-//                if (snapshot != null && snapshot.exists()) {
-//                    Log.d(TAG, "Current data: " + snapshot.getData());
-//                    ChatMessage message = snapshot.toObject(ChatMessage.class);
-//                    UpdateMessage(message);
-//
-//                } else {
-//                    Log.d(TAG, "Current data: null");
-//                }
-//            }
-//        });
-
     }
 
   private void  UpdateMessage(ArrayList<ChatMessage> message) {

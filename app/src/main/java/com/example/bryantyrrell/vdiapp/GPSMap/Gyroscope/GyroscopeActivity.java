@@ -15,6 +15,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 
 import com.example.bryantyrrell.vdiapp.GPSMap.AccelerationFiltering.AngleCalcAsync;
+import com.example.bryantyrrell.vdiapp.GPSMap.VeichleMoving.VeichleInTransit;
 import com.example.bryantyrrell.vdiapp.R;
 
 import org.achartengine.ChartFactory;
@@ -42,6 +43,8 @@ public class GyroscopeActivity extends AppCompatActivity implements SensorEventL
     // private LinearLayout layout;
     private View mChart;
     private double currAngle;
+    private boolean SetUp;
+    private VeichleInTransit check;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,28 +68,36 @@ public class GyroscopeActivity extends AppCompatActivity implements SensorEventL
         layout = (LinearLayout) findViewById(R.id.ChartContainer);
 
         btnUpload.setEnabled(false);
+        check = new VeichleInTransit();
+        SetUp=true;
     }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (started) {
-
-            if(event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-                sensorData.add(new GyroData(System.currentTimeMillis(), event.values[0], event.values[1], event.values[2]));
+            if (SetUp) {
+                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                    SetUp = check.checkVeichleMovement(event);
+                }
             }
-            if(currAngle!=0&&sensorData.size()!=0){
-                processing=new GyroProcessing(this, sensorData.get(sensorData.size()-1),currAngle);
-                processing.execute();
-            }
+            if (!SetUp) {
+                if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
+                    sensorData.add(new GyroData(System.currentTimeMillis(), event.values[0], event.values[1], event.values[2]));
+                }
+                if (currAngle != 0 && sensorData.size() != 0) {
+                    processing = new GyroProcessing(this, sensorData.get(sensorData.size() - 1), currAngle);
+                    processing.execute();
+                }
 
-            if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
-                gravity = event.values;
-            if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
-                geomagnetic = event.values;
+                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
+                    gravity = event.values;
+                if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
+                    geomagnetic = event.values;
 
-            if (gravity != null && geomagnetic != null) {
-                angleCalc = new AngleCalcAsync(this,gravity,geomagnetic);
-                angleCalc.execute();
+                if (gravity != null && geomagnetic != null) {
+                    angleCalc = new AngleCalcAsync(this, gravity, geomagnetic);
+                    angleCalc.execute();
+                }
             }
         }
 
