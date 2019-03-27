@@ -1,18 +1,18 @@
-package com.example.bryantyrrell.vdiapp.GPSMap.AccelerationFiltering;
+package com.example.bryantyrrell.vdiapp.GPSMap.Gyroscope.GyroscopeProcessing;
 
-import com.example.bryantyrrell.vdiapp.GPSMap.Acceleration.AccelData;
+import com.example.bryantyrrell.vdiapp.GPSMap.Gyroscope.GyroData;
 
 import java.util.ArrayList;
 
-public class MeanProcessing  {
-    private ArrayList<AccelData> meanFilterList;
-    private AccelData meanValue;
+public class GyroscopeMeanProcessing  {
+    private ArrayList<GyroData> meanFilterList;
+    private GyroData meanValue;
     private int count;
     double[] Summedvalues;
-    private int RequiredSize=200;
+    private int RequiredSize=60;
     private long Summedtimestamp;
 
-    public MeanProcessing(ArrayList<AccelData> meanFilterList) {
+    public GyroscopeMeanProcessing(ArrayList<GyroData> meanFilterList) {
         this.meanFilterList=meanFilterList;
 
     }
@@ -30,11 +30,11 @@ public class MeanProcessing  {
             count++;
         }
 
-        meanValue=new AccelData((Summedtimestamp/count),(Summedvalues[0]/count),(Summedvalues[1]/count),(Summedvalues[2]/count));
+        meanValue=new GyroData((Summedtimestamp/count),(Summedvalues[0]/count),(Summedvalues[1]/count),(Summedvalues[2]/count));
         System.out.println("the x y and z after mean averaging are"+meanValue.getX()+"  "+meanValue.getY()+"  "+meanValue.getZ());
     }
 
-    public AccelData getDataPoint() {
+    public GyroData getDataPoint() {
         return meanValue;
     }
 }

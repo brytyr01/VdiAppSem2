@@ -94,7 +94,7 @@ public class PastMapsActivity extends FragmentActivity implements OnMapReadyCall
         final CollectionReference colRef = userDocument.collection("GPS_Location").document(routeName).collection("GPS_Pings").document("Processed_GPS_Pings").collection("GPSObjects");
 
 
-        colRef.orderBy("name", Query.Direction.ASCENDING).addSnapshotListener(new EventListener<QuerySnapshot>() {
+        colRef.orderBy("timeStamp", Query.Direction.ASCENDING).addSnapshotListener(new EventListener<QuerySnapshot>() {
 
 
             @Override
@@ -150,15 +150,15 @@ public class PastMapsActivity extends FragmentActivity implements OnMapReadyCall
                 MarkerOptions markerOptions = new MarkerOptions();
                 markerOptions.position(gpsPoint);
                 markerOptions.title(obj.getVideoFileName());
-                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
+                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
                 if (mMap != null)
                     mMap.addMarker(markerOptions);
             }
-            if (drivingtype.contains(obj.getVideoFileName())) {
+            if (drivingtype.contains("dangerous Steering")) {
                 MarkerOptions markerOptions = new MarkerOptions();
                 markerOptions.position(gpsPoint);
-                markerOptions.title("dangerous Steering");
-                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
+                markerOptions.title(obj.getVideoFileName());
+                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
 
                 if (mMap != null)
                      marker = mMap.addMarker(markerOptions);
@@ -169,41 +169,43 @@ public class PastMapsActivity extends FragmentActivity implements OnMapReadyCall
 
 
     private void RedrawLine(ArrayList<GPSPoint> GPSList) {
-        PolylineOptions optionsSafe = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
-        PolylineOptions optionsAcceleration = new PolylineOptions().width(8).color(Color.RED).geodesic(true);
-        PolylineOptions optionsSteering = new PolylineOptions().width(8).color(Color.CYAN).geodesic(true);
-
+        //PolylineOptions optionsSafe = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
+        //PolylineOptions optionsAcceleration = new PolylineOptions().width(5).color(Color.RED).geodesic(true);
+        //PolylineOptions optionsSteering = new PolylineOptions().width(5).color(Color.YELLOW).geodesic(true);
+        LatLng PreviousLatLngPoint=new LatLng(0,0);
         for (int i = 0; i < GPSList.size(); i++) {
-
+            PolylineOptions optionsSafe = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
+            PolylineOptions optionsAcceleration = new PolylineOptions().width(5).color(Color.RED).geodesic(true);
+            PolylineOptions optionsSteering = new PolylineOptions().width(5).color(Color.YELLOW).geodesic(true);
             LtLngPoint = new LatLng(GPSList.get(i).getGpsPoint().getLatitude(),GPSList.get(i).getGpsPoint().getLongitude());
 
             if (i == 0) {
-                mMap.addMarker(new MarkerOptions().position(LtLngPoint).title("Start of route"));
+
+                mMap.addMarker(new MarkerOptions().position(LtLngPoint).title("Start of route")).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
                 //zoom to route size
+                PreviousLatLngPoint=LtLngPoint;
                 zoomToRoute();
+                continue;
             }
             if(GPSList.get(i).getDrivingType().contains("safe")) {
+                optionsSafe.add(PreviousLatLngPoint);
                 optionsSafe.add(LtLngPoint);
+                mMap.addPolyline(optionsSafe); //add Polyline
             }
             if(GPSList.get(i).getDrivingType().contains("acceleration")) {
+                optionsAcceleration.add(PreviousLatLngPoint);
                 optionsAcceleration.add(LtLngPoint);
+                mMap.addPolyline(optionsAcceleration); //add Polyline
             }
             if(GPSList.get(i).getDrivingType().contains("steering")) {
+                optionsSteering.add(PreviousLatLngPoint);
                 optionsSteering.add(LtLngPoint);
+                mMap.addPolyline(optionsSteering); //add Polyline
             }
+            PreviousLatLngPoint=LtLngPoint;
         }
         // adds marker to end of route
-        mMap.addMarker(new MarkerOptions().position(LtLngPoint).title("End of route"));
-
-        //add Marker in current position
-        mMap.addPolyline(optionsSafe); //add Polyline
-        mMap.addPolyline(optionsAcceleration); //add Polyline
-        mMap.addPolyline(optionsSteering); //add Polyline
-
-
-
-
-
+        mMap.addMarker(new MarkerOptions().position(LtLngPoint).title("End of route")).setIcon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_GREEN));
 
     }
 
@@ -242,6 +244,15 @@ public class PastMapsActivity extends FragmentActivity implements OnMapReadyCall
     @Override
     public boolean onMarkerClick(Marker marker) {
         System.out.println("This marker was clicked: "+marker.getTitle());
+        if(marker.getTitle().contains("Start of route")||marker.getTitle().contains("End of route")){
+            if(marker.isInfoWindowShown()){
+                marker.hideInfoWindow();
+            }
+            else{
+                marker.showInfoWindow();
+            }
+            return true;
+        }
         Intent intent = new Intent(this,VideoPlayerActivity.class);
         intent.putExtra("VideoName",marker.getTitle());
         intent.putExtra("UserID",UserID);

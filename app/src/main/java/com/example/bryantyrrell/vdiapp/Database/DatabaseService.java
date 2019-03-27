@@ -149,7 +149,7 @@ public class DatabaseService {
         Map<String, GeoPoint> FirstPing = new HashMap<>();
         FirstPing.put("TestPing", gps);
 
-        GPSPoint gpsProcessed = new GPSPoint(0,"test",gps);
+        GPSPoint gpsProcessed = new GPSPoint(0,"test",gps,0);
         Map<String, GPSPoint> FirstPingProcessed = new HashMap<>();
         FirstPingProcessed.put("TestPing", gpsProcessed);
 

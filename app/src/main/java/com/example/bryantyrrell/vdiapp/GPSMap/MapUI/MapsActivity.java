@@ -13,6 +13,8 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Build;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.support.v4.app.ActivityCompat;
 import android.os.Bundle;
@@ -30,6 +32,7 @@ import com.example.bryantyrrell.vdiapp.Database.DatabaseService;
 import com.example.bryantyrrell.vdiapp.GPSMap.Acceleration.AccelerometerClass;
 import com.example.bryantyrrell.vdiapp.GPSMap.Gyroscope.GyroscopeService;
 import com.example.bryantyrrell.vdiapp.GPSMap.Video.FileCleanUp;
+import com.example.bryantyrrell.vdiapp.GPSMap.Video.Ready;
 import com.example.bryantyrrell.vdiapp.GPSMap.Video.SimpleVideoService;
 import com.example.bryantyrrell.vdiapp.GPSMap.Video.VideoObject;
 import com.example.bryantyrrell.vdiapp.R;
@@ -62,6 +65,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
     private GoogleMap mMap;
     private ProgressDialog LocationDialog;
     private Marker markerLocation;
+    private Marker DangerousMarkerLocation;
     private DatabaseService databaseUser;
     private ArrayList<LatLng> PreProcessedGPSPoints, PostProcessedGPSPoints;
     private ArrayList<Marker> DangerousMarkers;
@@ -70,15 +74,25 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
     private View fabAction1, fabAction2, fabAction3;
     private FabButtons fab;
     private FileCleanUp fileCleanUp;
+    private Intent accelService;
+    private Intent steeringService;
+    private Timer Videotimer;
+    private Timer VideoProcessingtask;
     private int count = 0;
     private boolean IllegalDriving = false;
+    private boolean PutExtra=true;
     private boolean IllegalSteering = false;
     private boolean IllegalAcceleration = false;
     private String steeringString = "steering";
     private String accelerationString = "acceleration";
     private DrivingBroadcast drivingBroadcastAcceleration;
     private DrivingBroadcast drivingBroadcastSteering;
+    private DrivingBroadcast BroadcastVideoRestarted;
+    private boolean BooleanVideoFinished;
     private Location Currentlatlng,LastlatLng;
+    long IncidentTime;
+    Handler Videohandler;
+    Runnable runnable;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,6 +111,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
         // Enable the Up button
         ab.setDisplayHomeAsUpEnabled(true);
 
+        ReceivedVideoRestart();
 
 
         // fab set up
@@ -130,22 +145,23 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
             @Override
             public void onReceive(Context context, Intent intent) {
                 IllegalDriving("acceleration");
-                directionsParser.DangerousAccelerationLine();
-                LatLng temp = new LatLng(Currentlatlng.getLatitude(),Currentlatlng.getLongitude());
+                directionsParser.setDangerousAcceleration();
+                LatLng curentPosition = new LatLng(Currentlatlng.getLatitude(),Currentlatlng.getLongitude());
                 // adds dangerous driving marker to current position
-                addMarker(temp,true);
+                SetDangerousDrivingMarker(curentPosition);
                 //the incident time is passed by the broadcast intent
-                long IncidentTime = intent.getLongExtra("incidentTime",-1);
+                IncidentTime = intent.getLongExtra("incidentTime",-1);
                 if(IncidentTime==-1){
                     IncidentTime=System.currentTimeMillis();
                 }
+                OndemandVideoRestart();
+                //VideoObject VideoObject = fileCleanUp.ProcessVideo(DangerousMarkers.get(DangerousMarkers.size()-1),"acceleration",IncidentTime);
+                //File video = fileCleanUp.getVideoFile();
+                //databaseUser.uploadVideoPoint(VideoObject);
 
-                VideoObject VideoObject = fileCleanUp.ProcessVideo(DangerousMarkers.get(DangerousMarkers.size()-1),"acceleration",IncidentTime);
-                File video = fileCleanUp.getVideoFile();
-                databaseUser.uploadVideoPoint(VideoObject);
+                //databaseUser.uploadFile(video);
 
-                databaseUser.uploadFile(video);
-                RegisterCoolDown();
+                RegisterCoolDownAcceleration();
             }
         };
         registerReceiver(drivingBroadcastAcceleration, new IntentFilter("com.vdi.driving.acceleration"));
@@ -159,38 +175,72 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
             @Override
             public void onReceive(Context context, Intent intent) {
                  IllegalDriving("steering");
-                directionsParser.DangerousSteeringLine();
+                directionsParser.setDangerousSteering();
                 LatLng currentPosition = new LatLng(Currentlatlng.getLatitude(),Currentlatlng.getLongitude());
                 // adds dangerous driving marker to current position
-                addMarker(currentPosition,true);
+                SetDangerousDrivingMarker(currentPosition);
                 //the incident time is passed by the broadcast intent
-                long IncidentTime = intent.getLongExtra("incidentTime",-1);
+                 IncidentTime = intent.getLongExtra("incidentTime",-1);
                 if(IncidentTime==-1){
                     IncidentTime=System.currentTimeMillis();
                 }
-                VideoObject object = fileCleanUp.ProcessVideo(DangerousMarkers.get(DangerousMarkers.size()-1),"steering", IncidentTime);
-                File video = fileCleanUp.getVideoFile();
-                databaseUser.uploadVideoPoint(object);
-                databaseUser.uploadFile(video);
+                OndemandVideoRestart();
+                RegisterCoolDownSteering();
+
             }
         };
         registerReceiver(drivingBroadcastSteering, new IntentFilter("com.vdi.driving.steering"));
     }
 
-    private void RegisterCoolDown() {
+
+
+
+
+
+
+
+
+
+
+    private void RegisterCoolDownAcceleration() {
         unregisterReceiver(drivingBroadcastAcceleration);
-        unregisterReceiver(drivingBroadcastSteering);
+
+        //unregisterReceiver(drivingBroadcastSteering);
         TimerTask coolDownTask = new TimerTask() {
             @Override
             public void run() {
                 registerReceiver(drivingBroadcastAcceleration, new IntentFilter("com.vdi.driving.acceleration"));
-                registerReceiver(drivingBroadcastSteering, new IntentFilter("com.vdi.driving.steering"));
+                //registerReceiver(drivingBroadcastSteering, new IntentFilter("com.vdi.driving.steering"));
+
+                Intent ChangeAlertToTrue = new Intent("com.vdi.driving.driverAlertSystemAcceleration");
+                sendBroadcast(ChangeAlertToTrue);
             }
         };
         Timer timer = new Timer();
 
         // schedules the task to be run after a 20 delay
-        timer.schedule(coolDownTask,20000);
+        timer.schedule(coolDownTask,60000);
+
+
+    }
+    private void RegisterCoolDownSteering() {
+        //unregisterReceiver(drivingBroadcastAcceleration);
+
+        unregisterReceiver(drivingBroadcastSteering);
+        TimerTask coolDownTask = new TimerTask() {
+            @Override
+            public void run() {
+          //      registerReceiver(drivingBroadcastAcceleration, new IntentFilter("com.vdi.driving.acceleration"));
+                registerReceiver(drivingBroadcastSteering, new IntentFilter("com.vdi.driving.steering"));
+
+                Intent ChangeAlertToTrue = new Intent("com.vdi.driving.driverAlertSystemSteering");
+                sendBroadcast(ChangeAlertToTrue);
+            }
+        };
+        Timer timer = new Timer();
+
+        // schedules the task to be run after a 20 delay
+        timer.schedule(coolDownTask,60000);
 
 
     }
@@ -206,54 +256,93 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
         }
     }
 
+    private void OndemandVideoRestart(){
+//        Intent test1 = new Intent("com.vdi.driving.video");
+//        test1.putExtra("StopType",1);
+//        sendBroadcast(test1);
+        startRecordingVideo();
+        PutExtra=true;
+        System.out.println("broadcast sent for video stop");
+        //((Ready) this.getApplication()).setVideoFinished(false);
+    }
+
+    private void ReceivedVideoRestart(){
+        BroadcastVideoRestarted = new DrivingBroadcast() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                System.out.println("Broadcast received");
+                int videoIndex = intent.getIntExtra("VideoIndex",0);
+                System.out.println("The video index is: "+videoIndex);
+                fileCleanUp.ProcessVideo(DangerousMarkers.get(DangerousMarkers.size()-1),"steering", IncidentTime,videoIndex);
+            }
+        };
+        registerReceiver(BroadcastVideoRestarted, new IntentFilter("com.vdi.driving.VideoRestarted"));
+    }
 
 
     private void startRecordingVideo(){
-
-        if(countVideo==0) {
-            Intent intent = new Intent(MapsActivity.this, SimpleVideoService.class);
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            startService(intent);
-            countVideo++;
+        if(Videotimer!=null){
+        Videotimer.cancel();
+        Videotimer.purge();
         }
+
         TimerTask task = new TimerTask() {
             @Override
             public void run() {
-                Intent test1 = new Intent("com.vdi.driving.video");
-                sendBroadcast(test1);
-                System.out.println("broadcast sent");
+                if(countVideo==0) {
+                    Intent intent = new Intent(MapsActivity.this, SimpleVideoService.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    startService(intent);
+                    countVideo++;
+                }
+                if(!PutExtra){
+                    Intent test1 = new Intent("com.vdi.driving.video");
+                    sendBroadcast(test1);
+                    System.out.println("broadcast sent");
+                }else{
+                    PutExtra=false;
+                    Intent test1 = new Intent("com.vdi.driving.video");
+                    test1.putExtra("StopType",1);
+                    sendBroadcast(test1);
+                    System.out.println("broadcast sent");
+                }
             }
         };
-        Timer timer = new Timer();
-        long delay = 15000;
+        Videotimer = new Timer();
+        long delayBetweenTasks = 45000;
 
         // schedules the task to be run after a 15 delay
-        timer.scheduleAtFixedRate(task,15000, delay);
+        Videotimer.scheduleAtFixedRate(task,0, delayBetweenTasks);
 
     }
 
 
+    public void stopTracking() {
+        accelService = new Intent(this, AccelerometerClass.class);
+        stopService(accelService);
+
+        steeringService = new Intent(this, GyroscopeService.class);
+        stopService(steeringService);
+        Videotimer.cancel();
+        Videotimer.purge();
+    }
 
 
+    public void StartTracking() {
+        fileCleanUp = new FileCleanUp(this,databaseUser);
 
-
-
-
-
-
-    public void StatTracking() {
         startRecordingVideo();
 
         registerAccelerationReceiver();
         registerSteeringReceiver();
 
-        Intent accelService = new Intent(this, AccelerometerClass.class);
+        accelService = new Intent(this, AccelerometerClass.class);
         startService(accelService);
 
-        Intent steeringService = new Intent(this, GyroscopeService.class);
+        steeringService = new Intent(this, GyroscopeService.class);
         startService(steeringService);
 
-        fileCleanUp = new FileCleanUp(this);
+
     }
 
 
@@ -267,10 +356,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
         fab.fabAction2(v);
     }
 
-    public void fabAction3(View v) {
-        fab.fabAction3(v);
-
-    }
+    public void fabAction3(View v) { fab.fabAction3(v); }
 
     private void InitialiseDataBaseUser() {
         FirebaseAuth mAuth = FirebaseAuth.getInstance();
@@ -305,7 +391,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
         }
        count++;
         // adds a marker for new gps point
-        addMarker(latLng,false);
+        addMarker(latLng);
 
         // adds the gps point to an array
         PreProcessedGPSPoints.add(latLng);
@@ -328,26 +414,26 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
 
 
     }
-    public void SetDangerousDriving(LatLng latLng){
+    public void SetDangerousDrivingMarker(LatLng latLng){
        if(IllegalAcceleration) {
            MarkerOptions markerOptions = new MarkerOptions();
            markerOptions.position(latLng);
            markerOptions.title("dangerous acceleration");
-           markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
+           markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
            if (mMap != null)
-               markerLocation = mMap.addMarker(markerOptions);
-           DangerousMarkers.add(markerLocation);
+               DangerousMarkerLocation = mMap.addMarker(markerOptions);
+           DangerousMarkers.add(DangerousMarkerLocation);
            IllegalAcceleration=false;
        }
        if(IllegalSteering) {
            MarkerOptions markerOptions = new MarkerOptions();
            markerOptions.position(latLng);
            markerOptions.title("dangerous Steering");
-           markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_ORANGE));
+           markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_YELLOW));
            if (mMap != null)
-               markerLocation = mMap.addMarker(markerOptions);
+               DangerousMarkerLocation = mMap.addMarker(markerOptions);
+           DangerousMarkers.add(DangerousMarkerLocation);
            IllegalSteering=false;
-           DangerousMarkers.add(markerLocation);
        }
 
 
@@ -375,18 +461,15 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
     }
 
 
-    private void addMarker(LatLng latLng, boolean PermanantMarker) {
+    private void addMarker(LatLng latLng) {
         if (latLng == null) {
             return;
         }
-        if (markerLocation != null&&PermanantMarker==false) {
+        if (markerLocation != null) {
             markerLocation.remove();
         }
 
-        if(IllegalDriving) {
-            SetDangerousDriving(latLng);
-        }
-        else {
+
             MarkerOptions markerOptions = new MarkerOptions();
             markerOptions.position(latLng);
             markerOptions.title("New Location");
@@ -401,7 +484,7 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
                     .build();
             if (mMap != null)
                 mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
-        }
+
 
         return;
     }
@@ -620,4 +703,6 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
         // TODO Auto-generated method stub
 
     }
+
+
 }

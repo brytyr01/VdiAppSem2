@@ -12,15 +12,16 @@ public class TrueGyroscope {
 
         public TrueGyroscope(GyroData datapoint, double angle) {
             this.datapoint = datapoint;
-            this.angle = angle;
+            this.angle = Math.abs(angle);
         }
 
         public GyroscopeObject calculateTrueGyroscopeVector(){
-            angle = Math.abs(angle);
-            double xAccel=datapoint.getX();
-            double yAccel=datapoint.getY();
-            double zAccel=datapoint.getZ();
-            double result=xAccel+yAccel+zAccel;
+
+            //angle = Math.abs(angle);
+            double yAccel = (datapoint.getY()) * (Math.cos(Math.toRadians(angle)));
+            double zAccel = (datapoint.getZ()) / (Math.sin(Math.toRadians(angle)));
+
+            double result = yAccel + zAccel;
             GyroscopeObject object = new GyroscopeObject(datapoint.getTimestamp(),result);
 
             return object;

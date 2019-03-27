@@ -21,8 +21,6 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 
 // this class takes the map and geo points and draws a road line
 //The Roads API identifies the roads a vehicle was traveling along
@@ -31,6 +29,8 @@ import java.util.HashMap;
 public class DirectionsParser {
     private GoogleMap mMap;
     private ArrayList<LatLng> preProcessedPoints;
+    private ArrayList<LatLng> preProcessedPointsToUpload;
+    private ArrayList<GPSPoint> postProcessedPointsToUpload;
     private ArrayList<GPSPoint> postProcessedPoints;
     private ArrayList<String> LocationID;
     private BufferedReader reader;
@@ -39,12 +39,16 @@ public class DirectionsParser {
     private DatabaseService databaseService;
     private ArrayList<Polyline> lines = new ArrayList<>();
     private boolean polylinedrawn=false;
+    private boolean AccelerationLine=false;
+    private boolean SteeringLine=false;
 
 
     public DirectionsParser(GoogleMap mMap, ArrayList<LatLng> storedPoints, DatabaseService databaseUser) {
         this.mMap = mMap;
         this.preProcessedPoints = storedPoints;
+        preProcessedPointsToUpload=new ArrayList<>();
         postProcessedPoints=new ArrayList<>();
+        postProcessedPointsToUpload=new ArrayList<>();
         LocationID=new ArrayList<>();
         databaseService=databaseUser;
     }
@@ -57,9 +61,14 @@ public class DirectionsParser {
         path.append("https://roads.googleapis.com/v1/snapToRoads?path=");
         Speedpath.append("https://roads.googleapis.com/v1/speedLimits?path=");
         // for loop iterates through all gps points and appends them as a string
-        for (int i = 0; i < preProcessedPoints.size(); i++) {
-            LatLng gpsPoint = preProcessedPoints.get(i);
-            if (i == (preProcessedPoints.size() - 1)) {
+        int ArraySize = preProcessedPoints.size()-1;
+        for (int i = ArraySize; i >= 0; i--) {
+
+            LatLng gpsPoint = preProcessedPoints.remove(0);
+            //removes it from the above gps list and as it has been sent to api call
+            preProcessedPointsToUpload.add(gpsPoint);
+
+            if (preProcessedPoints.size()==0) {
                 path.append(gpsPoint.latitude + "," + gpsPoint.longitude + "&");
                 Speedpath.append(gpsPoint.latitude + "," + gpsPoint.longitude + "&");
             } else {
@@ -71,12 +80,24 @@ public class DirectionsParser {
         path.append("key=AIzaSyBIXmHTXWs1LfOc7E6ERSGMQRWd4sA6swM");
 
         Speedpath.append("key=AIzaSyBu3T_2-eHuWB216xOnv6Dew2oEpnjVB28");
-
+        System.out.println("Speed api"+Speedpath.toString());
+        System.out.println("Snap To Raods API: "+Speedpath.toString());
         // calls snap to route api from google in inner private class
         SnapToRoadAPICall SnapToRoad = new SnapToRoadAPICall();
         SnapToRoad.execute(path.toString());
 
     }
+
+    public void setDangerousAcceleration(){
+        AccelerationLine=true;
+    }
+    public void setDangerousSteering(){
+        SteeringLine=true;
+    }
+
+
+
+
 
 
 
@@ -137,7 +158,8 @@ public class DirectionsParser {
                     JSONObject obje = geopoint.getJSONObject("location");
                     LatLng point = new LatLng(obje.getDouble("latitude"), obje.getDouble("longitude"));
                     GeoPoint geoPoint= new GeoPoint(point.latitude,point.longitude);
-                    GPSPoint gpsPoint = new GPSPoint(0,"safe",geoPoint);
+                    Long TimeStamp = System.nanoTime();
+                    GPSPoint gpsPoint = new GPSPoint(0,"safe",geoPoint,TimeStamp);
                     postProcessedPoints.add(gpsPoint);
                 }
                if (geopoint.has("placeId")) {
@@ -154,74 +176,106 @@ public class DirectionsParser {
     }
 
     private void RedrawLine() {
-        PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
+       if(AccelerationLine){
+           DangerousAccelerationLine();
+       }
+       else if(SteeringLine){
+           DangerousSteeringLine();
+       }
 
-        for (int i = 0; i < postProcessedPoints.size(); i++) {
-            LatLng point = new LatLng(postProcessedPoints.get(i).getGpsPoint().getLatitude(),postProcessedPoints.get(i).getGpsPoint().getLongitude());
-            options.add(point);
+       else{
+            PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
+            for (int i = postProcessedPoints.size()-1; i >= 0; i--) {
+
+                GPSPoint gpsPoint;
+                if(i==0){
+                     gpsPoint = postProcessedPoints.get(0);
+                }
+                else {
+                     gpsPoint = postProcessedPoints.remove(0);
+                }
+                LatLng point = new LatLng(gpsPoint.getGpsPoint().getLatitude(), gpsPoint.getGpsPoint().getLongitude());
+                options.add(point);
+                postProcessedPointsToUpload.add(gpsPoint);
+            }
+            //add polyline in current position
+            Polyline line = mMap.addPolyline(options); //add Polyline
+            //lines.add(line);
         }
-        //add polyline in current position
-        Polyline line = mMap.addPolyline(options); //add Polyline
-        lines.add(line);
         // takes old gps points out of the array and sends them to the database class to be uploaded
         RemoveGPSPoints();
     }
     public void DangerousSteeringLine() {
-        if(!polylinedrawn) {
-            if(lines!=null&&!lines.isEmpty()){
-            Polyline lastLine = lines.get(lines.size() - 1);
-                lastLine.remove();
-            }
+//        if(!polylinedrawn) {
+//            if(lines!=null&&!lines.isEmpty()){
+//            Polyline lastLine = lines.get(lines.size() - 1);
+//                lastLine.remove();
+//            }
 
-            PolylineOptions options = new PolylineOptions().width(8).color(Color.RED).geodesic(true);
+            PolylineOptions options = new PolylineOptions().width(5).color(Color.YELLOW).geodesic(true);
 
-                for (int i = 0; i < postProcessedPoints.size(); i++) {
-                    LatLng point = new LatLng(postProcessedPoints.get(i).getGpsPoint().getLatitude(), postProcessedPoints.get(i).getGpsPoint().getLongitude());
-                    postProcessedPoints.get(i).setDrivingType("steering");
-                    options.add(point);
+                for (int i = postProcessedPoints.size()-1; i >= 0; i--) {
+                    GPSPoint gpsPoint;
+                    if(i==0){
+                        gpsPoint = postProcessedPoints.get(0);
+                    }
+                    else {
+                        gpsPoint = postProcessedPoints.remove(0);
+                    }
+                        LatLng point = new LatLng(gpsPoint.getGpsPoint().getLatitude(), gpsPoint.getGpsPoint().getLongitude());
+                        gpsPoint.setDrivingType("steering");
+                        options.add(point);
+                        postProcessedPointsToUpload.add(gpsPoint);
                 }
 
             //add polyline in current position
 
             mMap.addPolyline(options); //add Polyline
+        AccelerationLine=false;
+        SteeringLine=false;
+            //polylinedrawn = true;
 
-            polylinedrawn = true;
-        }
         // takes old gps points out of the array and sends them to the database class to be uploaded
-        //RemoveGPSPoints();
+        RemoveGPSPoints();
     }
     public void DangerousAccelerationLine() {
-        if (!polylinedrawn) {
-            if (lines != null && !lines.isEmpty()) {
-                Polyline lastLine = lines.get(lines.size() - 1);
-                lastLine.remove();
-            }
-            PolylineOptions options = new PolylineOptions().width(8).color(Color.RED).geodesic(true);
+            PolylineOptions options = new PolylineOptions().width(5).color(Color.RED).geodesic(true);
 
-            for (int i = 0; i < postProcessedPoints.size(); i++) {
-                LatLng point = new LatLng(postProcessedPoints.get(i).getGpsPoint().getLatitude(), postProcessedPoints.get(i).getGpsPoint().getLongitude());
-                postProcessedPoints.get(i).setDrivingType("acceleration");
+        for (int i = postProcessedPoints.size()-1; i >= 0; i--) {
+            GPSPoint gpsPoint;
+            if(i==0){
+                gpsPoint = postProcessedPoints.get(0);
+            }
+            else {
+                gpsPoint = postProcessedPoints.remove(0);
+            }
+            LatLng point = new LatLng(gpsPoint.getGpsPoint().getLatitude(), gpsPoint.getGpsPoint().getLongitude());
+                gpsPoint.setDrivingType("acceleration");
                 options.add(point);
+                postProcessedPointsToUpload.add(gpsPoint);
             }
 
             //add polyline in current position
             mMap.addPolyline(options); //add Polyline
+            AccelerationLine=false;
+            SteeringLine=false;
+            //polylinedrawn = true;
+        // takes old gps points out of the array and sends them to the database class to be uploaded
+        RemoveGPSPoints();
 
-            polylinedrawn = true;
-        }
     }
 
     // takes old gps points out of the array and sends them to the database class to be uploaded
     private void RemoveGPSPoints() {
         // leaves 1 point for accuracy
-        for(int i=0;i<(preProcessedPoints.size()-1);i++) {
+        for(int i=0;i<(preProcessedPointsToUpload.size());i++) {
 
-           databaseService.addPreGpsPoint(preProcessedPoints.remove(i));
+           databaseService.addPreGpsPoint(preProcessedPointsToUpload.remove(i));
 
        }
-        for(int i=0;i<(postProcessedPoints.size());i++) {
+        for(int i=0;i<(postProcessedPointsToUpload.size());i++) {
 
-            databaseService.addPostGpsPoint(postProcessedPoints.remove(i));
+            databaseService.addPostGpsPoint(postProcessedPointsToUpload.remove(i));
         }
         for(int i=0;i<(LocationID.size());i++) {
 
@@ -229,7 +283,7 @@ public class DirectionsParser {
         }
         // clears all the points from the processed arraylist
         LocationID.clear();
-        polylinedrawn=false;
+        //polylinedrawn=false;
     }
 
 

@@ -1,6 +1,6 @@
 package com.example.bryantyrrell.vdiapp;
 
-import java.util.ArrayList;
+
 // class used to create user object
 public class Users {
     private String UserName;

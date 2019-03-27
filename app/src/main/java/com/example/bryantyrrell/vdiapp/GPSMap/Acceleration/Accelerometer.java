@@ -73,7 +73,6 @@ public class Accelerometer extends Service implements SensorEventListener {
     public void onSensorChanged(SensorEvent se) {
 
         Sensor mySensor = se.sensor;
-        System.out.println("The sensor changed!!!!");
 
         if (mySensor.getType() == Sensor.TYPE_ACCELEROMETER) {
 
@@ -92,10 +91,7 @@ public class Accelerometer extends Service implements SensorEventListener {
                 last_y = y;
                 last_z = z;
 
-                System.out.println("accelerometer"+Float.toString(values[0]) + ";" +
-                        Float.toString(values[1]) + ";" +
-                        Float.toString(values[2]) + ";" +
-                        "Speed: "+ speed + "\n");
+
             }
             }
 

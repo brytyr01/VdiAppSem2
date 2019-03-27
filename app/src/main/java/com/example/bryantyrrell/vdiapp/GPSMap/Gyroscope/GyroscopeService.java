@@ -3,14 +3,19 @@ package com.example.bryantyrrell.vdiapp.GPSMap.Gyroscope;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
+import android.media.MediaPlayer;
 import android.os.IBinder;
 
 import com.example.bryantyrrell.vdiapp.GPSMap.AccelerationFiltering.AngleCalcAsync;
+import com.example.bryantyrrell.vdiapp.GPSMap.Gyroscope.GyroscopeProcessing.GyroscopeMeanProcessing;
+import com.example.bryantyrrell.vdiapp.GPSMap.MapUI.DrivingBroadcast;
 import com.example.bryantyrrell.vdiapp.GPSMap.VeichleMoving.VeichleInTransit;
+import com.example.bryantyrrell.vdiapp.R;
 
 import java.util.ArrayList;
 
@@ -19,36 +24,48 @@ public class GyroscopeService  extends Service implements SensorEventListener {
         private SensorManager sensorManager;
         private MaxGyroService service;
         private GyroProcessing processing;
-        private static ArrayList<GyroData> sensorData;
+        private DrivingBroadcast driverAlertSystem;
+        private GyroscopeMeanProcessing gyroscopeMeanProcessing;
+        private static ArrayList<GyroData> MeanFilterList;
         private static ArrayList<GyroscopeObject> gyroLine;
+    private static ArrayList<GyroData> sensorData;
         private float[] gravity,geomagnetic;
         private AngleCalcAsync angleCalc;
         private double currAngle;
+        private boolean alert=true;
         private int AngleCount=0;
         private double TotalAngle;
         private boolean SetUp;
+        private Sensor gyro;
+        private Sensor magnet;
+        private Sensor accel;
+        private int count;
         private VeichleInTransit check;
 
 
         private void setup() {
 
             sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
-            sensorData = new ArrayList();
+            MeanFilterList = new ArrayList();
+            gyroscopeMeanProcessing = new GyroscopeMeanProcessing(MeanFilterList);
             gyroLine = new ArrayList();
             sensorData = new ArrayList();
+            count=0;
 
-            Sensor gyro = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
-            Sensor magnet = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-            Sensor accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
-            sensorManager.registerListener(this, gyro, SensorManager.SENSOR_DELAY_NORMAL);
-            sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_NORMAL);
-            sensorManager.registerListener(this, magnet, SensorManager.SENSOR_DELAY_NORMAL);
+             gyro = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE);
+             magnet = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
+             accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            sensorManager.registerListener(this, gyro, SensorManager.SENSOR_DELAY_FASTEST);
+            sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_FASTEST);
+            sensorManager.registerListener(this, magnet, SensorManager.SENSOR_DELAY_FASTEST);
 
             service = new MaxGyroService(gyroLine,this);
 
 
             check = new VeichleInTransit();
             SetUp=true;
+
+            registerSteeringReceiver();
 
             //AngleCount=0;
 
@@ -57,7 +74,19 @@ public class GyroscopeService  extends Service implements SensorEventListener {
 
         @Override
         public void onSensorChanged(SensorEvent event) {
+            if(AngleCount < 5) {
+                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
+                    gravity = event.values;
+                if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
+                    geomagnetic = event.values;
 
+                if ( gravity != null && geomagnetic != null) {
+                    AngleCount++;
+                    angleCalc = new AngleCalcAsync(this, gravity, geomagnetic);
+                    angleCalc.execute();
+                    return;
+                }
+            }
             if(SetUp) {
                 if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
                     SetUp = check.checkVeichleMovement(event);
@@ -65,22 +94,14 @@ public class GyroscopeService  extends Service implements SensorEventListener {
             }
                 if (!SetUp) {
                     if (event.sensor.getType() == Sensor.TYPE_GYROSCOPE) {
-                        sensorData.add(new GyroData(System.currentTimeMillis(), event.values[0], event.values[1], event.values[2]));
+                        count++;
+                        MeanFilterList.add(new GyroData(System.currentTimeMillis(), event.values[0], event.values[1], event.values[2]));
                     }
-                    if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
-                        gravity = event.values;
-                    if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
-                        geomagnetic = event.values;
 
-                    if (AngleCount < 5 && gravity != null && geomagnetic != null) {
-                        AngleCount++;
-                        angleCalc = new AngleCalcAsync(this, gravity, geomagnetic);
-                        angleCalc.execute();
-                        return;
-                    }
-                    if (currAngle != 0 && sensorData.size() != 0) {
-                        processing = new GyroProcessing(this, sensorData.get(sensorData.size() - 1), currAngle);
+                    if (currAngle != 0 && count > 60) {
+                        processing = new GyroProcessing(this, MeanFilterList, currAngle,gyroscopeMeanProcessing);
                         processing.execute();
+                        count=0;
                     }
                 }
             }
@@ -105,16 +126,46 @@ public class GyroscopeService  extends Service implements SensorEventListener {
         }
 
         public void SetDangerousSteering() {
-            //try {
-            //    MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.beep);
-            //    mp.start();
-            //} catch (Exception e) {
-            //    e.printStackTrace();
-            //}
-            Intent test1 = new Intent("com.vdi.driving.steering");
-            this.sendBroadcast(test1);
-        }
+            if(alert){
+                    try {
+                            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.dangerouscornering);
+                            mp.start();
+                            mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener()
+                            {
 
+                                @Override
+                                public void onCompletion(MediaPlayer mp)
+                                {
+                                    // TODO Auto-generated method stub
+                                    mp.stop();
+                                    System.out.println("Media Plyer Is Complete !!!");
+                                    mp.release();
+                                    System.out.println("Music is over and Button is enable !!!!!!");
+                                }
+                            });
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                        }
+
+                Long IncidentTime = System.currentTimeMillis();
+                Intent test1 = new Intent("com.vdi.driving.steering");
+                test1.putExtra("incidentTime",IncidentTime);
+                this.sendBroadcast(test1);
+                setAlertFalse();
+            }
+        }
+    public void setAlertTrue(){alert=true;}
+    public void setAlertFalse(){alert=false;}
+
+    private void registerSteeringReceiver() {
+        driverAlertSystem = new DrivingBroadcast() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                setAlertTrue();
+            }
+        };
+        registerReceiver(driverAlertSystem, new IntentFilter("com.vdi.driving.driverAlertSystemSteering"));
+    }
     @Override
     public IBinder onBind(Intent intent) {
         setup();
@@ -123,6 +174,13 @@ public class GyroscopeService  extends Service implements SensorEventListener {
     @Override
     public void onCreate() {
         setup();
+    }
+
+    @Override
+    public void onDestroy() {
+        sensorManager.unregisterListener(this, accel);
+        sensorManager.unregisterListener(this, magnet);
+        sensorManager.unregisterListener(this, gyro);
     }
 }
 

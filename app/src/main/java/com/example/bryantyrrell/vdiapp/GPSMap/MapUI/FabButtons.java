@@ -8,6 +8,7 @@ import android.app.AlertDialog;
 import android.app.Service;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.drawable.Animatable;
 import android.graphics.drawable.Drawable;
 import android.text.InputType;
@@ -70,6 +71,7 @@ public class FabButtons  {
     }
     public void fabAction3(View v) {
         Toast.makeText(context, "Tracking stopped",Toast.LENGTH_LONG).show();
+        activity.stopTracking();
         State=3;
 
         setUp=true;
@@ -132,7 +134,7 @@ public class FabButtons  {
                 //set up route in database
                 databaseUser.createRouteGpsStorage(m_Text);
                 setUp=false;
-                activity.StatTracking();
+                activity.StartTracking();
                 State = 1;
                 Toast.makeText(context.getApplicationContext() , "Tracking started", Toast.LENGTH_LONG).show();
             }

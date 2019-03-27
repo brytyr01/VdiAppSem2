@@ -1,8 +1,8 @@
 package com.example.bryantyrrell.vdiapp.GPSMap.Acceleration;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
@@ -35,22 +35,26 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
     private SensorManager sensorManager;
     private MeanProcessing MeanProcessing;
     private  Sensor accel;
+    private  Sensor gravitySensor;
     private MaxAccelService service;
     private Sensor magnet;
     private Button btnStart, btnStop, btnUpload;
     private LinearLayout layout;
     private SignalProcessing processing;
-    private int count = 0;
-    private int AngleCount=0;
-    private double TotalAngle=0;
+    private int count;
+    private int AngleCount;
+    private double TotalAngle;
     private boolean started = false;
     private long startTime;
+    private static ArrayList<Double> AverageThreshold;
     private SignalProcessing signalProcessing;
     private static ArrayList<AccelData> sensorData;
     private static ArrayList<AccelerationObject> accelLine;
     private ArrayList<AccelData> MeanFilterList;
     private float[] gravity,geomagnetic;
     private View mChart;
+    private int buttonPress=0;
+    private double ThresholdValue=3;
     private double CurrAngle;
     private boolean SetUp;
     private VeichleInTransit check;
@@ -91,38 +95,48 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (started) {
+
+           if(AngleCount < 5) {
+               if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
+                   gravity = event.values;
+               if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
+                   geomagnetic = event.values;
+
+               if ( gravity != null && geomagnetic != null) {
+                   AngleCount++;
+                   angleCalc = new AngleCalcAsync(this, gravity, geomagnetic);
+                   angleCalc.execute();
+                   return;
+               }
+           }
+
+
             if(SetUp){
-                if(event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
+                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
                     SetUp = check.checkVeichleMovement(event);
+                    System.out.println("The loop is still in set up: "+ SetUp);
                 }
             }
             if(!SetUp) {
+                if(event.sensor.getType() == Sensor.TYPE_GRAVITY){
+                    gravity= event.values;
+                }
                 if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER) {
                     count++;
-                    MeanFilterList.add(new AccelData(System.currentTimeMillis(), event.values[0], event.values[1], event.values[2]));
+                    MeanFilterList.add(new AccelData(System.nanoTime(), event.values[0], event.values[1], event.values[2]));
                 }
 
-                if (count > 2 && CurrAngle != 0) {
-                    processing = new SignalProcessing(this, 0.5, startTime, MeanFilterList, CurrAngle, MeanProcessing);
+                if (count > 200 && CurrAngle != 0) {
+                    processing = new SignalProcessing(this, 0.5, startTime, MeanFilterList, CurrAngle, MeanProcessing,gravity);
                     processing.execute(event);
                     count = 0;
                 }
 
-                if (event.sensor.getType() == Sensor.TYPE_ACCELEROMETER)
-                    gravity = event.values;
-                if (event.sensor.getType() == Sensor.TYPE_MAGNETIC_FIELD)
-                    geomagnetic = event.values;
-
-
-                if (AngleCount < 5 && gravity != null && geomagnetic != null) {
-                    AngleCount++;
-                    angleCalc = new AngleCalcAsync(this, gravity, geomagnetic);
-                    angleCalc.execute();
-                }
             }
         }
 
     }
+
 
     @Override
     public void onAccuracyChanged(Sensor sensor, int accuracy) {
@@ -151,20 +165,31 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
                 btnStart.setEnabled(false);
                 btnStop.setEnabled(true);
                 btnUpload.setEnabled(false);
+
+
                 sensorData = new ArrayList();
                 accelLine = new ArrayList();
+
+                if(AverageThreshold!=null) {
+                    AverageThreshold.clear();
+                }
                 // save prev data if available
                 started = true;
                 startTime = System.nanoTime();
-
+                count = 0;
+                AngleCount=0;
+                TotalAngle=0;
+                SetUp=true;
 
                 service = new MaxAccelService(accelLine,this);
 
 
                 accel = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+                gravitySensor = sensorManager.getDefaultSensor(Sensor.TYPE_GRAVITY);
                 magnet = sensorManager.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD);
-                sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_NORMAL);
+                sensorManager.registerListener(this, accel, SensorManager.SENSOR_DELAY_FASTEST);
                 sensorManager.registerListener(this, magnet, SensorManager.SENSOR_DELAY_NORMAL);
+                sensorManager.registerListener(this, gravitySensor, SensorManager.SENSOR_DELAY_NORMAL);
 
                 break;
 
@@ -191,6 +216,20 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
                 break;
             case R.id.button2:
                 // upload data to server (next post)
+                buttonPress++;
+                if(buttonPress==1){
+                    ThresholdValue=3;
+                    break;
+                }
+                if(buttonPress==2){
+                    ThresholdValue=6;
+                    break;
+                }
+                if(buttonPress==3){
+                    ThresholdValue=9;
+                    break;
+                }
+                buttonPress=0;
                 break;
             default:
                 break;
@@ -207,20 +246,32 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
             XYSeries ySeries = new XYSeries("Y");
             XYSeries zSeries = new XYSeries("Z");
             XYSeries TrueAccel = new XYSeries("TrueAccel");
+            XYSeries ThresholdPositive = new XYSeries("Threshold");
+            XYSeries ThresholdNegitive = new XYSeries("Threshold");
 
             for (AccelData data : sensorData) {
                 xSeries.add(data.getTimestamp() - t, data.getX());
                 ySeries.add(data.getTimestamp() - t, data.getY());
                 zSeries.add(data.getTimestamp() - t, data.getZ());
             }
+
+            AverageThreshold=service.ReturnAverageThreshold();
+            int index=0;
             for (AccelerationObject data : accelLine) {
                 TrueAccel.add(data.getTimeStamp() - t, data.getTrueAccel());
+                ThresholdPositive.add(data.getTimeStamp() - t, AverageThreshold.get(index));
+                ThresholdNegitive.add(data.getTimeStamp() - t, -AverageThreshold.get(index));
+                index++;
+
             }
+
 
             dataset.addSeries(xSeries);
             dataset.addSeries(ySeries);
             dataset.addSeries(zSeries);
             dataset.addSeries(TrueAccel);
+            dataset.addSeries(ThresholdPositive);
+            dataset.addSeries(ThresholdNegitive);
 
             XYSeriesRenderer xRenderer = new XYSeriesRenderer();
             xRenderer.setColor(Color.RED);
@@ -250,6 +301,20 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
             AccelRenderer.setLineWidth(1);
             AccelRenderer.setDisplayChartValues(false);
 
+            XYSeriesRenderer ThresholdRenderer = new XYSeriesRenderer();
+            ThresholdRenderer.setColor(Color.BLACK);
+            ThresholdRenderer.setPointStyle(PointStyle.CIRCLE);
+            ThresholdRenderer.setFillPoints(true);
+            ThresholdRenderer.setLineWidth(1);
+            ThresholdRenderer.setDisplayChartValues(true);
+
+            XYSeriesRenderer ThresholdRenderer2 = new XYSeriesRenderer();
+            ThresholdRenderer2.setColor(Color.BLACK);
+            ThresholdRenderer2.setPointStyle(PointStyle.CIRCLE);
+            ThresholdRenderer2.setFillPoints(true);
+            ThresholdRenderer2.setLineWidth(1);
+            ThresholdRenderer2.setDisplayChartValues(true);
+
             XYMultipleSeriesRenderer multiRenderer = new XYMultipleSeriesRenderer();
             multiRenderer.setXLabels(0);
             multiRenderer.setLabelsColor(Color.RED);
@@ -263,13 +328,17 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
                         + (sensorData.get(i).getTimestamp() - t));
             }
             for (int i = 0; i < 12; i++) {
-                multiRenderer.addYTextLabel(i + 1, "" + i);
+                multiRenderer.addYTextLabel(i + 1, "test" + i);
             }
 
             multiRenderer.addSeriesRenderer(xRenderer);
             multiRenderer.addSeriesRenderer(yRenderer);
             multiRenderer.addSeriesRenderer(zRenderer);
             multiRenderer.addSeriesRenderer(AccelRenderer);
+            multiRenderer.addSeriesRenderer(ThresholdRenderer);
+            multiRenderer.addSeriesRenderer(ThresholdRenderer2);
+            multiRenderer.setYLabelsAlign(Paint.Align.RIGHT);
+            multiRenderer.setMargins(new int[]{ 50, 50, 50, 50 });
 
             // Getting a reference to LinearLayout of the MainActivity Layout
 
@@ -280,6 +349,7 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
             // Adding the Line Chart to the LinearLayout
             layout.addView(mChart);
 
+
         }
     }
 
@@ -289,7 +359,9 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
     }
     public void addAccelPoint(AccelerationObject data) {
         accelLine.add(data);
-         service.CheckAcceleration();
+
+        service.CheckAccelerationSensorActivity(ThresholdValue);
+
 
     }
     public void setCurrAngle(Double angle) {
@@ -298,13 +370,49 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
 
     }
 
+
     public void SetDangerousAcceleration() {
-//        try {
-//            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.beep);
-//            mp.start();
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
+        try {
+            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.dangerousacceleration);
+            mp.start();
+            mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener()
+            {
+
+                @Override
+                public void onCompletion(MediaPlayer mp)
+                {
+                    // TODO Auto-generated method stub
+                    mp.stop();
+                    System.out.println("Media Plyer Is Complete !!!");
+                    mp.release();
+                    System.out.println("Music is over and Button is enable !!!!!!");
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void SetDangerousDeceleration() {
+        try {
+            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.dangerousdeceleration);
+            mp.start();
+            mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener()
+            {
+
+                @Override
+                public void onCompletion(MediaPlayer mp)
+                {
+                    // TODO Auto-generated method stub
+                    mp.stop();
+                    System.out.println("Media Plyer Is Complete !!!");
+                    mp.release();
+                    System.out.println("Music is over and Button is enable !!!!!!");
+                }
+            });
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
 

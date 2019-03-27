@@ -22,22 +22,25 @@ public class SignalProcessing extends AsyncTask<SensorEvent, Void, Void> {
     private double timeConstant;
     ArrayList<AccelData> meanFilterList;
     private double CurrAngle;
+    private float[] gravity;
 
-    public SignalProcessing(AccelerometerActivity accelerometerActivity, double timeConstant, long startTime, ArrayList<AccelData> meanFilterList, double currAngle, MeanProcessing meanProcessing) {
+    public SignalProcessing(AccelerometerActivity accelerometerActivity, double timeConstant, long startTime, ArrayList<AccelData> meanFilterList, double currAngle, MeanProcessing meanProcessing, float[] gravity) {
         activity = accelerometerActivity;
         this.startTime = startTime;
         this.timeConstant=timeConstant;
         this.meanFilterList=meanFilterList;
         this.CurrAngle=currAngle;
         processing=meanProcessing;
+        this.gravity=gravity;
     }
-    public SignalProcessing(AccelerometerClass accelerometerClass, double timeConstant, long startTime, ArrayList<AccelData> meanFilterList, double currAngle, MeanProcessing meanProcessing) {
+    public SignalProcessing(AccelerometerClass accelerometerClass, double timeConstant, long startTime, ArrayList<AccelData> meanFilterList, double currAngle, MeanProcessing meanProcessing, float[] gravity) {
         this.accelerometerClass = accelerometerClass;
         this.startTime = startTime;
         this.timeConstant=timeConstant;
         this.meanFilterList=meanFilterList;
         this.CurrAngle=currAngle;
         processing=meanProcessing;
+        this.gravity=gravity;
     }
 
     public void resetStaticValues(){
@@ -66,17 +69,21 @@ public class SignalProcessing extends AsyncTask<SensorEvent, Void, Void> {
         // individually vary by a relatively large time frame, so we use an
         // averaging technique with the number of sensor updates to
         // determine the delivery rate.
-        float dt = 1 / (count++ / ((data.getTimestamp() - startTime) / 1000000000.0f));
+//        float dt = 1 / (count++ / ((data.getTimestamp() - startTime) / 1000000000.0f));
+//
+//        double alpha = timeConstant / (timeConstant + dt);
+//
+//        output[0] = alpha * output[0] + (1 - alpha) * data.getX();
+//        output[1] = alpha * output[1] + (1 - alpha) * data.getY();
+//        output[2] = alpha * output[2] + (1 - alpha) * data.getZ();
+//
+//        data.setX(data.getX() - output[0]);
+//        data.setY(data.getY() - output[1]);
+//        data.setZ(data.getZ() - output[2]);
+        data.setX(data.getX() - gravity[0]);
+        data.setY(data.getY() - gravity[1]);
+        data.setZ(data.getZ() - gravity[2]);
 
-        double alpha = timeConstant / (timeConstant + dt);
-
-        output[0] = alpha * output[0] + (1 - alpha) * data.getX();
-        output[1] = alpha * output[1] + (1 - alpha) * data.getY();
-        output[2] = alpha * output[2] + (1 - alpha) * data.getZ();
-
-        data.setX(data.getX() - output[0]);
-        data.setY(data.getY() - output[1]);
-        data.setZ(data.getZ() - output[2]);
     }
 
     protected void onPostExecute(AccelData data) {

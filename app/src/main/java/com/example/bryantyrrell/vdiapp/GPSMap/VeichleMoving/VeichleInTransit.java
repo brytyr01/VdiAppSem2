@@ -9,8 +9,8 @@ import java.util.List;
 
 public class VeichleInTransit {
     private List<Double> SingleAccelerationMag=new ArrayList<>();
-    double MaxThreshold = 0.1d;
-    double MinThreshold = -0.1d;
+    double MaxThreshold = 0.2d;//.1
+    double MinThreshold = -0.2d;//should be .1
 
     public void VeichleInTransit(){
 
@@ -22,7 +22,6 @@ public class VeichleInTransit {
     public boolean checkVeichleMovement(SensorEvent event){
         AccelData currentPoint = new AccelData(System.currentTimeMillis(), event.values[0], event.values[1], event.values[2]);
         double magnitude = calculateAccelerationMagnitude(currentPoint);
-        System.out.println("Mag value: "+magnitude);
         SingleAccelerationMag.add(magnitude);
 
         double totalMagnitude=0;
@@ -69,18 +68,15 @@ public class VeichleInTransit {
 
             totalSumMagnitudeMinusMean=totalSumMagnitudeMinusMean+Math.pow(((singleAccelerationMagList.get(i)-mean)),2);
 
-            if(i==(singleAccelerationMagList.size()-1)){
-                variance=totalSumMagnitudeMinusMean/singleAccelerationMagList.size();
-            }
-
         }
+        variance=totalSumMagnitudeMinusMean/singleAccelerationMagList.size();
         return variance;
     }
 
     private boolean checkSandardDeviationThreshold(double StandardDeviation) {
         boolean  AboveThreshold;
         //use in thesis to show output of acccelerometer threshold
-        System.out.println("The standard deviation Magnitude is: "+StandardDeviation);
+        //System.out.println("The standard deviation Magnitude is: "+StandardDeviation);
 
 
         if(StandardDeviation>MaxThreshold||StandardDeviation<MinThreshold){

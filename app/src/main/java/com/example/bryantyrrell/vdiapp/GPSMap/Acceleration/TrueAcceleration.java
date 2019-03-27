@@ -20,8 +20,8 @@ public class TrueAcceleration {
 
 
         angle = Math.abs(angle);
-        double yAccel = dataPoint.getY() * (cos(angle));
-        double zAccel = dataPoint.getZ() / (sin(angle));
+        double yAccel = dataPoint.getY() * (cos(Math.toRadians(angle)));
+        double zAccel = dataPoint.getZ() / (sin(Math.toRadians(angle)));
 
         double result = yAccel + zAccel;
         AccelerationObject object = new AccelerationObject(dataPoint.getTimestamp(), result);

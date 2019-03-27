@@ -6,11 +6,13 @@ public class GPSPoint {
         private String DrivingType;
         private GeoPoint GpsPoint;
         private int name;
+        private long TimeStamp;
 
-        public GPSPoint(int name, String DrivingType, GeoPoint gpsPoint) {
+        public GPSPoint(int name, String DrivingType, GeoPoint gpsPoint,long TimeStamp) {
             this.name = name;
             this.DrivingType = DrivingType;
             this.GpsPoint=gpsPoint;
+            this.TimeStamp=TimeStamp;
 
         }
         public GPSPoint(){
@@ -39,6 +41,14 @@ public class GPSPoint {
         public void setGpsPoint(GeoPoint GpsPoint) {
             this.GpsPoint = GpsPoint;
         }
+
+        public long getTimeStamp() {
+        return TimeStamp;
+    }
+
+       public void setTimeStamp(long TimeStamp) {
+        this.TimeStamp = TimeStamp;
+    }
 }
 
 

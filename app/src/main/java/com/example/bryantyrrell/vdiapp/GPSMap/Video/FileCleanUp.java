@@ -1,7 +1,10 @@
 package com.example.bryantyrrell.vdiapp.GPSMap.Video;
 
 import android.content.Context;
+import android.util.Log;
 
+import com.example.bryantyrrell.vdiapp.Database.DatabaseService;
+import com.example.bryantyrrell.vdiapp.GPSMap.MapUI.MapsActivity;
 import com.github.hiteshsondhi88.libffmpeg.ExecuteBinaryResponseHandler;
 import com.github.hiteshsondhi88.libffmpeg.FFmpeg;
 import com.github.hiteshsondhi88.libffmpeg.LoadBinaryResponseHandler;
@@ -11,50 +14,43 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.firebase.firestore.GeoPoint;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 
 public class FileCleanUp {
     static ArrayList<Integer> videoIndex = new ArrayList<>();
     static ArrayList<Long> StartTimes = new ArrayList<>();
     static ArrayList<VideoCutTimes> CutObjects = new ArrayList<>();
-    private static boolean ClassReady=false;
+    static Map<Integer,Long> referenceList = new HashMap<>();
     private long videoEditingTime=4000;
     private long videoLength=12000;
     private File processedVideoFile;
     private String root;
     private Context context;
+    private SimpleVideoService videoDoneCheck;
+    private DatabaseService databaseUser;
 
     public FileCleanUp(Context context){
         this.context=context;
         root = context.getExternalCacheDir().toString()+"/videoFiles/";
 
     }
-
-    FileCleanUp(String absoluteFilePath, boolean ClassReady){
-        this.ClassReady=ClassReady;
-        root = absoluteFilePath;
+    public FileCleanUp(MapsActivity activity, DatabaseService databaseUser){
+        root = activity.getExternalCacheDir().toString()+"/videoFiles/";
+        this.databaseUser=databaseUser;
+        context=activity;
 
     }
 
-    public boolean isClassReady(){
-        return ClassReady;
-    }
-
-    public void addVideoIndex(int countValue, Long startTime){
-        videoIndex.add(countValue);
+    public void addVideoIndex(int videoIndexInt, Long startTime){
+        videoIndex.add(videoIndexInt);
         StartTimes.add(startTime);
+        referenceList.put(videoIndexInt,startTime);
+
         if(videoIndex.size()>3){
-            deleteFile(videoIndex.remove(0));
-            StartTimes.remove(0);
+            //deleteFile(videoIndex.remove(0));
+            //StartTimes.remove(0);
         }
     }
 
@@ -68,11 +64,11 @@ public class FileCleanUp {
 
     }
 
-    public VideoObject ProcessVideo(Marker marker, String TypeOfDriving, long incidentTime){
+    public void ProcessVideo(final Marker marker, String TypeOfDriving, long incidentTime, int videoIndex){
         // split a video into minus 4 seconds and plus 4 seconds
         VideoCutTimes cutTimes = new VideoCutTimes();
 
-       int StartTimeIndex = GetTimeIndex(incidentTime);
+       int StartTimeIndex = GetTimeIndex(incidentTime,videoIndex);
 
        if(StartTimeIndex>=0) {
            getVideoEditingStartTimes(StartTimeIndex, incidentTime,cutTimes);
@@ -82,27 +78,43 @@ public class FileCleanUp {
            CutObjects.add(cutTimes);
            System.out.println("This incident time is: "+incidentTime);
            System.out.println("This start time is: "+StartTimes.get(StartTimeIndex));
-           System.out.println("This is the index: "+cutTimes.getIndex());
+           System.out.println("This is the start time index: "+cutTimes.getIndex());
            System.out.println("This is the time before: "+cutTimes.getTimeBefore());
            System.out.println("This is the time After: "+cutTimes.getTimeAfter());
 
 
 
        }
+        System.out.println("This is the video index used: "+videoIndex);
+        int indexTemp=videoIndex;
+//        if(FileCleanUp.videoIndex.size()>1) {
+//            indexTemp = FileCleanUp.videoIndex.get((FileCleanUp.videoIndex.size() - 2));
+//            //indexTemp = videoIndex.get((videoIndex.size() - 1));
+//        }else{
+//            indexTemp = FileCleanUp.videoIndex.get((FileCleanUp.videoIndex.size() - 1));
+//        }
+
+        long totalTime = 15;
+        long StartTime = 0;
+        long PotientialStartTime = (cutTimes.getIncidentTime()-StartTimes.get(cutTimes.getIndex()))/1000;
+        System.out.println("The start time is: "+PotientialStartTime);
+        long PotientialtotalTime = (cutTimes.getTimeBefore()+cutTimes.getTimeAfter())/1000;
 
 
+        PotientialStartTime=PotientialStartTime-((cutTimes.getTimeBefore()+cutTimes.getTimeAfter())/1000);
 
-
-
-        int indexTemp=0;
-        if(videoIndex.size()>1) {
-            indexTemp = videoIndex.get((videoIndex.size() - 2));
-        }else{
-            indexTemp = videoIndex.get((videoIndex.size() - 1));
+        if(PotientialStartTime<0||PotientialStartTime>27){
+            PotientialStartTime=0;
         }
-        long totalTime = cutTimes.getTimeBefore()+ cutTimes.getTimeAfter()-1000;
-        long StartTime = cutTimes.getIncidentTime()-StartTimes.get(cutTimes.getIndex());
-        String[] cmd = {"-ss", "" + StartTime / 1000, "-y", "-i", root+"Video"+indexTemp+".mp4", "-t", "" + (totalTime) / 1000, "-s", "320x240", "-r", "15", "-vcodec", "mpeg4", "-b:v", "2097152", "-b:a", "48000", "-ac", "2", "-ar", "22050", root+"ProcessedVideoFFMPeg"+indexTemp+".mp4"};
+//        if(totalTime<=0||totalTime>7){
+//            totalTime = 4;
+//        }
+        System.out.println("The start time is: "+PotientialStartTime);
+        System.out.println("The total time is: "+totalTime);
+        System.out.println("The potiential total time after is: "+PotientialtotalTime);
+        //String[] cmd = {"-ss", "" + StartTime / 1000, "-y", "-i", root+"Video"+indexTemp+".mp4", "-t", "" + (totalTime) / 1000, "-s", "320x240", "-r", "15", "-vcodec", "mpeg4", "-b:v", "2097152", "-b:a", "48000", "-ac", "2", "-ar", "22050", root+"ProcessedVideoFFMPeg"+indexTemp+".mp4"};
+        //ffmpeg -i in.mp4 -ss [start] -t [duration] -c copy out.mp4
+        String[] cmd = {"-y","-i",root+"Video"+indexTemp+".mp4","-ss",""+PotientialStartTime, "-c","copy","-t", "" + PotientialtotalTime, root+"ProcessedVideoFFMPeg"+indexTemp+".mp4"};
 
         FFmpeg ffmpeg = FFmpeg.getInstance(context);
         try {
@@ -120,12 +132,13 @@ public class FileCleanUp {
                 @Override
                 public void onFinish() {}
             });
-        } catch (FFmpegNotSupportedException e) {
+        } catch (Exception e) {
             // Handle if FFmpeg is not supported by device
         }
         try {
             // to execute "ffmpeg -version" command you just need to pass "-version"
             final long[] Time = new long[1];
+            final int finalIndexTemp = indexTemp;
             ffmpeg.execute(cmd, new ExecuteBinaryResponseHandler() {
 
                 @Override
@@ -134,10 +147,14 @@ public class FileCleanUp {
                 }
 
                 @Override
-                public void onProgress(String message) {}
+                public void onProgress(String message) {
+                    Log.i("FFmpeg", message);
+                }
 
                 @Override
-                public void onFailure(String message) {}
+                public void onFailure(String message) {
+                    Log.e("FFmpeg", message);
+                }
 
                 @Override
                 public void onSuccess(String message) {}
@@ -145,27 +162,50 @@ public class FileCleanUp {
                 @Override
                 public void onFinish() {
                     //call update server inside here
+                    Log.i("FFmpeg", "on finish");
+
+                    System.out.println("it finished ffmpeg ");
+
+
+                    File NewFile = new File(root,"ProcessedVideoFFMPeg"+ finalIndexTemp +".mp4");
+                    VideoObject videoObject = CreateVideoObject(NewFile, marker);
+                    processedVideoFile=NewFile;
+                    File videoFile = getVideoFile();
+
+                    databaseUser.uploadVideoPoint(videoObject);
+                    databaseUser.uploadFile(videoFile);
+
                 }
             });
-        } catch (FFmpegCommandAlreadyRunningException e) {
+        } catch (Exception e) {
             // Handle if FFmpeg is already running
+            e.printStackTrace();
         }
 
-        File NewFile = new File(root,"ProcessedVideoFFMPeg"+indexTemp+".mp4");
-        VideoObject video = CreateVideoObject(NewFile, marker);
-        processedVideoFile=NewFile;
-        //might need to add a wait into here?
-        return video;
+
+
+//        File NewFile = new File(root,"ProcessedVideoFFMPeg"+indexTemp+".mp4");
+//        VideoObject video = CreateVideoObject(NewFile, marker);
+//        processedVideoFile=NewFile;
+            //might need to add a wait into here?
+           // return video;
+
     }
 
-    private int GetTimeIndex(long incidentTime) {
-        for(int i=StartTimes.size()-1;i>=0;i--){
-            if(StartTimes.get(i)<=incidentTime){
-                System.out.println("Got inside index call:   "+i);
-                return i;
+    private int GetTimeIndex(long incidentTime,int VideoIndex) {
+
+        //long startTime = referenceList.get(VideoIndex);
+            for (int i = StartTimes.size() - 1; i >= 0; i--) {
+                System.out.println("StartTimes inide for loop Are"+StartTimes.get(i));
+                System.out.println("Incident time is"+incidentTime);
+                if (StartTimes.get(i) <= incidentTime) {
+                    System.out.println("Got inside index call:   " + i);
+                    return i;
+                }
             }
-        }
+
         return -1;
+
     }
     private void getVideoEditingStartTimes(int startTimeIndex, long incidentTime, VideoCutTimes cutTimes) {
 
@@ -184,7 +224,8 @@ public class FileCleanUp {
             cutTimes.setTimeAfter(videoEditingTime);
         }else{
             // say you need the remainder to be taken from index before
-            cutTimes.setTimeAfter((videoLength-(incidentTime-StartTimes.get(startTimeIndex))));
+            //cutTimes.setTimeAfter((videoLength-(incidentTime-StartTimes.get(startTimeIndex))));
+            cutTimes.setTimeAfter(2000);
         }
     }
 

@@ -27,16 +27,26 @@ public class SimpleVideoService extends Service implements MediaRecorder.OnInfoL
     private SurfaceHolder mSurfaceHolder;
     private static Camera mServiceCamera;
     private boolean mRecordingStatus;
+    static boolean VideoStopped=false;
     private MediaRecorder mMediaRecorder;
     private FileCleanUp fileClean;
     static int countvalue = 0;
     DrivingBroadcast drivingBroadcastSteering1;
 
+
+
     private void registerVideoReceiver() {
         drivingBroadcastSteering1 = new DrivingBroadcast() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                stopRecording();
+
+                int signal = intent.getIntExtra("StopType",0);
+                if(signal==1){
+                    VideoStopped=true;
+                    stopRecording();
+                }else{
+                    stopRecording();
+                }
             }
         };
         registerReceiver(drivingBroadcastSteering1, new IntentFilter("com.vdi.driving.video"));
@@ -49,8 +59,12 @@ public class SimpleVideoService extends Service implements MediaRecorder.OnInfoL
         mServiceCamera = Camera.open(0);
         mSurfaceView = MapsActivity.mSurfaceView;
         mSurfaceHolder = MapsActivity.mSurfaceHolder;
+        if(mSurfaceView==null){
+            mSurfaceView = VideoTOPActivity.mSurfaceView;
+            mSurfaceHolder = VideoTOPActivity.mSurfaceHolder;
+        }
         createDirectory();
-        fileClean = new FileCleanUp(directory.getAbsolutePath(),true);
+        fileClean = new FileCleanUp(this);
         super.onCreate();
         if (mRecordingStatus == false) {
             startRecording();
@@ -115,11 +129,12 @@ public class SimpleVideoService extends Service implements MediaRecorder.OnInfoL
 
             mMediaRecorder = new MediaRecorder();
             mMediaRecorder.setCamera(mServiceCamera);
-            mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
+            mMediaRecorder.setOrientationHint(90);
+           // mMediaRecorder.setAudioSource(MediaRecorder.AudioSource.DEFAULT);
             mMediaRecorder.setVideoSource(MediaRecorder.VideoSource.DEFAULT);
-            mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.DEFAULT);
-            mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
-            mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.DEFAULT);
+            mMediaRecorder.setOutputFormat(MediaRecorder.OutputFormat.MPEG_4);
+           // mMediaRecorder.setAudioEncoder(MediaRecorder.AudioEncoder.DEFAULT);
+            mMediaRecorder.setVideoEncoder(MediaRecorder.VideoEncoder.H264);
             mMediaRecorder.setOutputFile(directory.getAbsolutePath()+File.separator+"Video"+countvalue+".mp4");
             mMediaRecorder.setVideoFrameRate(30);
             mMediaRecorder.setVideoSize(mPreviewSize.width, mPreviewSize.height);
@@ -166,10 +181,27 @@ public class SimpleVideoService extends Service implements MediaRecorder.OnInfoL
             e.printStackTrace();
         }
 
-
-
-       // fileClean.ProcessVideo(marker,"acceleration");
         startRecording();
+
+        if(VideoStopped==true){
+            VideoStopped=false;
+            Intent test1 = new Intent("com.vdi.driving.VideoRestarted");
+
+            int videoValue=countvalue;
+            if(videoValue==1) {
+                videoValue=videoValue-1;
+                test1.putExtra("VideoIndex", videoValue);
+            }else if(videoValue>1){
+                videoValue=videoValue-2;
+                test1.putExtra("VideoIndex", videoValue);
+            }
+            sendBroadcast(test1);
+            System.out.println("video restarted broadcast sent");
+        }
+
+        //startRecording();
+
+
     }
 
 }

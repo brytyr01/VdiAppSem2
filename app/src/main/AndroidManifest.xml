@@ -28,6 +28,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
+        android:name=".GPSMap.Video.Ready"
         android:theme="@style/Theme.AppCompat.Light.NoActionBar">
         <activity android:name=".Activities.VideoPlayerActivity"></activity>
         <activity android:name=".GPSMap.Video.VideoTOPActivity" />

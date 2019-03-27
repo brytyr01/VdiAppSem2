@@ -51,7 +51,6 @@ public class AngleCalcAsync extends AsyncTask<Void , Void, Void> {
             SensorManager.getOrientation(R, orientation);
             double pitch = orientation[1]; // pitch is The geomagnetic inclination angle in radians.
             double CurrAngle = Math.toDegrees(pitch);
-            System.out.println("got the anglllllllllllllllllllllllllllllleeeeeeeeeeeeeeeeeeeeeeeeeee" + CurrAngle);
 
             if(accelActivity!=null) {
                 accelActivity.setCurrAngle(CurrAngle);
