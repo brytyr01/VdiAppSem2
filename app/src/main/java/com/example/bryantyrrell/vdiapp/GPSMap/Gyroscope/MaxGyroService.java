@@ -4,8 +4,8 @@ package com.example.bryantyrrell.vdiapp.GPSMap.Gyroscope;
 import java.util.ArrayList;
 
 class MaxGyroService  {
-    private double MaxSteering = 4.0d;
-    private double MinSteering = -4.0d;
+    private double MaxSteering = 2d;
+    private double MinSteering = -2d;
     private GyroscopeActivity gyroscopeActivity;
     private GyroscopeService gyroscopeService;
     private static ArrayList<GyroscopeObject> GyroLine;

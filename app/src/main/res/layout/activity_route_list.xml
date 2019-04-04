@@ -51,10 +51,16 @@
                     android:id="@+id/ButtonLabel"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_alignParentLeft="true"
                     android:text="Button" />
-                <!--android:text="Date"-->
 
+                <TextView
+                    android:id="@+id/routeLabel2"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_alignParentLeft="true"
+                    android:text="I C" />
+                <!--android:text="Date"-->
+                <!-- android:layout_alignParentLeft="true"-->
             </TableRow>
 
             <TableRow

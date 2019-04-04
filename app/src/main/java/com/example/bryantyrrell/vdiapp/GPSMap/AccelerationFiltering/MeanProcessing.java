@@ -9,7 +9,7 @@ public class MeanProcessing  {
     private AccelData meanValue;
     private int count;
     double[] Summedvalues;
-    private int RequiredSize=200;
+    private int RequiredSize=20;
     private long Summedtimestamp;
 
     public MeanProcessing(ArrayList<AccelData> meanFilterList) {

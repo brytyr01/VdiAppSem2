@@ -118,7 +118,7 @@ private void setup(){
                     MeanFilterList.add(new AccelData(System.nanoTime(), event.values[0], event.values[1], event.values[2]));
                 }
 
-                if (count > 200 && CurrAngle != 0) {
+                if (count > 20 && CurrAngle != 0) {
                     processing = new SignalProcessing(this, 0.5, startTime, MeanFilterList, CurrAngle, MeanProcessing,gravity);
                     processing.execute(event);
                     count = 0;
@@ -138,7 +138,7 @@ private void setup(){
         }
         public void addAccelPoint(AccelerationObject data) {
             accelLine.add(data);
-            service.CheckAccelerationSensorActivity(9);
+            service.CheckAccelerationSensorActivity(2);
 
 
         }
@@ -242,6 +242,5 @@ private void setup(){
         sensorManager.unregisterListener(this, gravitySensor);
     }
     }
-
 
 

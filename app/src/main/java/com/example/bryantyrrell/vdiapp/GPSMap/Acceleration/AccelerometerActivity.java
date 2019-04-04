@@ -126,7 +126,7 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
                     MeanFilterList.add(new AccelData(System.nanoTime(), event.values[0], event.values[1], event.values[2]));
                 }
 
-                if (count > 200 && CurrAngle != 0) {
+                if (count > 20 && CurrAngle != 0) {
                     processing = new SignalProcessing(this, 0.5, startTime, MeanFilterList, CurrAngle, MeanProcessing,gravity);
                     processing.execute(event);
                     count = 0;
@@ -360,7 +360,7 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
     public void addAccelPoint(AccelerationObject data) {
         accelLine.add(data);
 
-        service.CheckAccelerationSensorActivity(ThresholdValue);
+        service.CheckAccelerationSensorActivity(3);
 
 
     }
@@ -395,7 +395,7 @@ public class AccelerometerActivity extends AppCompatActivity implements SensorEv
 
     public void SetDangerousDeceleration() {
         try {
-            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.dangerousdeceleration);
+            MediaPlayer mp = MediaPlayer.create(getApplicationContext(), R.raw.dangerousacceleration);
             mp.start();
             mp.setOnCompletionListener(new MediaPlayer.OnCompletionListener()
             {
