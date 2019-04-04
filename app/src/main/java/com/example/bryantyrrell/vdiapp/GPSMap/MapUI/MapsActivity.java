@@ -169,7 +169,6 @@ public class MapsActivity extends AppCompatActivity implements LocationListener 
 
 
 
-    //https://medium.com/@anitaa_1990/how-to-update-an-activity-from-background-service-or-a-broadcastreceiver-6dabdb5cef74
     private void registerSteeringReceiver() {
         drivingBroadcastSteering = new DrivingBroadcast() {
             @Override
